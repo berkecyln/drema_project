@@ -12,10 +12,12 @@ from drema.r2s_builder.gaussians_optimizers.surf_optimizer import SurfTrainer
 from drema.r2s_builder.gaussians_optimizers.base_optimizer import BaseTrainer
 from drema.utils.coppelia_utils import read_labels
 
+#BN: go over labels.txt and seperate robot, table and object labels
+def prepare_labels(path):
+    labels = read_labels(path, filter_labels=False) #BN: create dict [name: number]
 
-def prepare_lables(path):
-    labels = read_labels(path, filter_labels=False)
-
+    #BN: this filtering occurs if we genereate data over RLBench scenes
+    #BN: if we bring our own scenes, we create labels.txt manually so these will be not here
     filter_names = ["DefaultCamera", "ResizableFloor", "workspace", "Wall"]
     # remove labels containing the filter names
     labels = {k: v for k, v in labels.items() if not any(name in k for name in filter_names)}
@@ -58,7 +60,7 @@ def main(cfg: DictConfig) -> None:
     source_path = cfg.data.source_path
     assets_path = cfg.data.assets_path
 
-    dataset = cfg.training.model
+    dataset = cfg.training.model #BN: configs/training/coppelia_params.yaml
     pipeline = cfg.training.pipeline
     optimization = cfg.training.optimization
 
@@ -67,14 +69,15 @@ def main(cfg: DictConfig) -> None:
     gaussians_iterations = assets.gaussians_iterations
     mesh_iterations = optimization.iterations
 
+    #BN: Basically we cannot use non-depth trainers since table extraction requires depth
     if assets.use_original_guassians:
         if assets.use_depth:
-            trainer = DepthTrainer
+            trainer = DepthTrainer #BN: Original Gaussian with depth
         else:
-            trainer = BaseTrainer
+            trainer = BaseTrainer #BN: Original Gaussian
     else:
         if assets.use_depth:
-            trainer = SurfDepthTrainer
+            trainer = SurfDepthTrainer #BN: 
         else:
             trainer = SurfTrainer
 
@@ -102,7 +105,7 @@ def main(cfg: DictConfig) -> None:
         # load the table
         assets_manager.load_table()
 
-    if assets.extract_gaussians_objects:
+    if assets.extract_gaussians_objects: #BN: <======== I STAYED HERE
         for label_name, value in object_labels.items():
             # extract the object
             assets_manager.extract_asset(value, extract_mesh=assets.extract_mesh_objects, extract_urdf=assets.extract_urdf_objects)

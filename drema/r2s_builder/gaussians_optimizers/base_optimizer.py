@@ -16,7 +16,7 @@ class BaseTrainer:
 
     def __init__(self, dataset, opt, pipe, saving_iterations):
         self.dataset = dataset
-        self.opt = opt
+        self.opt = opt #BN: mesh optimization options. We have this since mesh extraction also done here
         self.pipe = pipe
         self.saving_iterations = saving_iterations
         #self.checkpoint_iterations = checkpoint_iterations
@@ -114,6 +114,7 @@ class BaseTrainer:
                     print("\n[ITER {}] Saving Gaussians".format(iteration))
                     self.gaussians_to_save = self.gaussians.clone()
 
+    #BN: called seperatly from AssetManager's extract_assets()
     def extract_mesh(self):
         bg_color = [1, 1, 1] if self.dataset.white_background else [0, 0, 0]
         gaussExtractor = GaussianExtractorDepth(self.gaussians, render_depth, self.pipe, bg_color=bg_color)
