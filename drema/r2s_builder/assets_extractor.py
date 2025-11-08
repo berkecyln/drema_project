@@ -175,7 +175,7 @@ class AssetsManager:
             gs_to_save.save_ply(os.path.join(output_path_ply, "gaussians_before_removal.ply")) 
 
         if extract_mesh: #BN: not used by default since this env will filtered
-            mesh = trainer.extract_mesh()#BN: Trainer method
+            mesh = trainer.extract_mesh()#BN: no mesh extract here in default
             mesh_path = os.path.join(self.assets_path, "meshes")
             os.makedirs(mesh_path, exist_ok=True)
             o3d.io.write_triangle_mesh(os.path.join(mesh_path, "environment.obj"), mesh)

@@ -51,6 +51,7 @@ class BaseTrainer:
             self.viewpoint_stack = self.scene.getTrainCameras().copy()
         viewpoint_cam = self.viewpoint_stack.pop(randint(0, len(self.viewpoint_stack) - 1))
 
+        #BN: background color
         bg = torch.rand((3), device="cuda") if self.opt.random_background else self.background
 
 

@@ -72,14 +72,14 @@ def main(cfg: DictConfig) -> None:
     #BN: Basically we cannot use non-depth trainers since table extraction requires depth
     if assets.use_original_guassians:
         if assets.use_depth:
-            trainer = DepthTrainer #BN: Original Gaussian with depth
+            trainer = DepthTrainer #BN: Original 3DGaussian with depth
         else:
-            trainer = BaseTrainer #BN: Original Gaussian
+            trainer = BaseTrainer #BN: Original 3DGaussian
     else:
         if assets.use_depth:
-            trainer = SurfDepthTrainer #BN: 
+            trainer = SurfDepthTrainer #BN: 2D Gaussian with depth
         else:
-            trainer = SurfTrainer
+            trainer = SurfTrainer #BN: 2D Gaussian 
 
     assets_manager = AssetsManager(source_path, assets_path, trainer, dataset, optimization, pipeline, gaussians_iterations, mesh_iterations)
 

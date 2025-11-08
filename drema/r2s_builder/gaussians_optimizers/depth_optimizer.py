@@ -23,6 +23,7 @@ class DepthTrainer(BaseTrainer):
             self.viewpoint_stack = self.scene.getTrainCameras().copy()
         viewpoint_cam = self.viewpoint_stack.pop(randint(0, len(self.viewpoint_stack) - 1))
 
+        #BN: diffrence from base optimizer depth renderer used
         render_pkg = render_depth(viewpoint_cam, self.gaussians, self.pipe, self.background)
         image, viewspace_point_tensor, visibility_filter, radii, depth = render_pkg["render"], render_pkg[
             "viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"], render_pkg["depth_map"]
@@ -46,6 +47,7 @@ class DepthTrainer(BaseTrainer):
         else:
             depth_loss = self.opt.lambda_depth * l1_loss(masked_depth, masked_gt_depth.unsqueeze(0))
 
+        #BN: difference from base optimizer add depth loss to total loss
         loss = (1.0 - self.opt.lambda_dssim) * Ll1 + self.opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + depth_loss
 
         loss.backward()
