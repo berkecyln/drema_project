@@ -9,8 +9,9 @@ from drema.gaussian_splatting_utils.loss_utils import l1_loss, ssim
 from drema.gaussian_splatting_utils.mesh_utils import GaussianExtractorDepth
 from drema.scene import Scene
 from drema.drema_scene import DremaScene
-
-
+#BN: training logging
+import time
+from torch.utils.tensorboard import SummaryWriter
 
 class BaseTrainer:
 
@@ -20,6 +21,10 @@ class BaseTrainer:
         self.pipe = pipe
         self.saving_iterations = saving_iterations
         #self.checkpoint_iterations = checkpoint_iterations
+
+        #BN: logging variables
+        self.tb_writer = SummaryWriter(f"logs/{dataset.model_name}")
+        self.testing_iterations = [1000, 3000, self.opt.iterations]
 
         self.scene = self.create_scene(dataset)
         self.gaussians = self.scene.gaussians
@@ -81,9 +86,19 @@ class BaseTrainer:
                     progress_bar.close()
 
                 # Log and save
-                #training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end),
+                # training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end),
                 #                testing_iterations, scene, render, (pipe, background))
 
+                #BN: logging add
+                iter_end = time.time()
+                elapsed_time = iter_end - iter_start
+
+                # BN: logging call
+                training_report(self.tb_writer, iteration, Ll1.item(), loss.item(), elapsed_time,
+                               self.testing_iterations, self.scene, render, (self.pipe, self.background))
+                
+                #BN: logging add
+                iter_start = time.time()
 
                 # Densification
                 if iteration < self.opt.densify_until_iter:
@@ -126,3 +141,54 @@ class BaseTrainer:
         mesh = gaussExtractor.extract_mesh_bounded(voxel_size=voxel_size, sdf_trunc=sdf_trunc, depth_trunc=depth_trunc)
 
         return mesh
+
+#BN: logging function called inside train()
+def training_report(tb_writer, iteration, Ll1, loss, elapsed_time, testing_iterations, scene, render_fn, render_args):
+    if tb_writer is None:
+        return 
+
+    # Log Training Stats
+    tb_writer.add_scalar('train/loss_l1', Ll1, iteration)
+    tb_writer.add_scalar('train/loss_total', loss, iteration)
+    tb_writer.add_scalar('train/time_per_iter', elapsed_time, iteration)
+
+    # Run Validation Loop
+    if iteration in testing_iterations:
+        print(f"\n[ITER {iteration}] Running validation...")
+        
+        total_l1_val = 0.0
+        pipe, background = render_args
+
+        # Set model to eval mode
+        scene.gaussians.eval()
+
+        # Get all test cameras
+        test_cameras = scene.getTestCameras()
+        if not test_cameras:
+            print("No test cameras found, skipping validation imagery.")
+            return
+
+        for view in test_cameras:
+            # Render the validation image
+            render_pkg = render_fn(view, scene.gaussians, pipe, background)
+            image = render_pkg["render"]
+            gt_image = view.original_image.cuda()
+            
+            # Calculate L1 loss for validation
+            total_l1_val += l1_loss(image, gt_image).item()
+
+        # Log average validation metrics
+        avg_l1_val = total_l1_val / len(test_cameras)
+        tb_writer.add_scalar('val/loss_l1', avg_l1_val, iteration)
+        print(f"[ITER {iteration}] Validation L1: {avg_l1_val:.5f}")
+
+        # Log a sample image
+        sample_view = test_cameras[0]
+        render_pkg = render_fn(sample_view, scene.gaussians, pipe, background)
+        
+        # Stack rendered and ground truth images side-by-side
+        combined_image = torch.cat([sample_view.original_image.cuda(), image], dim=2)
+        tb_writer.add_image('val/comparison_gt_vs_render', combined_image, iteration, dataformats='CHW')
+
+        # Set model back to train mode
+        scene.gaussians.train()
