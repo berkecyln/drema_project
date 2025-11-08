@@ -88,10 +88,11 @@ def main(cfg: DictConfig) -> None:
 
     # Extract Environment
     if assets.extract_gaussians_environment:
+        #BN: extract mesh environment = false since we use depth to extract table
         assets_manager.extract_environment(assets.extract_mesh_environment)
 
     # get labels
-    panda_labels, object_labels, table_labels = prepare_lables(os.path.join(source_path, "labels.txt"))
+    panda_labels, object_labels, table_labels = prepare_labels(os.path.join(source_path, "labels.txt"))
 
     # if it needs to extract the table
     if assets.extract_table:
@@ -105,12 +106,13 @@ def main(cfg: DictConfig) -> None:
         # load the table
         assets_manager.load_table()
 
-    if assets.extract_gaussians_objects: #BN: <======== I STAYED HERE
-        for label_name, value in object_labels.items():
+    if assets.extract_gaussians_objects:
+        for label_name, value in object_labels.items(): #BN: go over each object label <== LOOP IS HERE
             # extract the object
+            #BN: ectract mesh objects = true, extract urdf objects = true
             assets_manager.extract_asset(value, extract_mesh=assets.extract_mesh_objects, extract_urdf=assets.extract_urdf_objects)
 
-    if assets.extract_gaussians_robot:
+    if assets.extract_gaussians_robot: #BN: by default false since we assume we have robot urdf beforehand
         for label_name, value in panda_labels.items():
             # extract the object
             assets_manager.extract_asset(value, extract_mesh=False, extract_urdf=False)

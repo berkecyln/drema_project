@@ -139,7 +139,7 @@ class AssetsManager:
         gs_to_save, gs_to_mesh, trainer = self.train_gaussians() #BN: Wrapper around Trainer
 
         # restore source path
-        shutil.rmtree(self.new_path)
+        shutil.rmtree(self.new_path) #BN: after training delete the filtered data tree
         self.dataset.source_path = self.source_path
 
         # filter gaussians
@@ -171,7 +171,8 @@ class AssetsManager:
         if len(gs_to_save.get_xyz) > 50:
             output_path_ply = os.path.join(self.assets_path, "objects_ply")
             os.makedirs(output_path_ply, exist_ok=True)
-            gs_to_save.save_ply(os.path.join(output_path_ply, "gaussians_before_removal.ply"))
+            #BN: will be filtered by filter_environment()
+            gs_to_save.save_ply(os.path.join(output_path_ply, "gaussians_before_removal.ply")) 
 
         if extract_mesh: #BN: not used by default since this env will filtered
             mesh = trainer.extract_mesh()#BN: Trainer method
@@ -260,6 +261,8 @@ class AssetsManager:
         mesh.remove_vertices_by_mask(inside_mask | below_table_mask)
 
     def filter_input_data(self, id):
+        #BN: Here they basically mirror current folder structure under filtered_ID
+        #BN: then they filter rgb, depth, mask images based on object id
         self.new_path = os.path.join(self.source_path, "filtered_" + str(id))
         print("Filtering data for object: ", id)
         print("New path: ", self.new_path)
@@ -294,17 +297,21 @@ class AssetsManager:
 
             # create a filter mask
             filter_mask = np.zeros(mask.shape, dtype=np.uint8)
-            filter_mask[mask != id] = 1
-            filter_mask = cv2.dilate(filter_mask, self.kernel)
+            filter_mask[mask != id] = 1 #BN: set white everywhere except object id
+            filter_mask = cv2.dilate(filter_mask, self.kernel) #BN: make white the borders of the object so to handle messy points
+            #BN: object pixels are 0, rest is 1 so object is False, rest is True
             filter_mask = filter_mask.astype(bool)
 
             # update bounding box params
             gs_translation, gs_rotation, intrinsics = camera_params[k]
+            #BN: ~ inverts the mask so normally our object is labeled
+            #BN: since we invert we only get ~(False) = True from point cloud
             points = project_depth(depth_images[k], intrinsics)[~filter_mask.reshape(-1)]
 
             if len(points) > 0:
-                points = np.dot(gs_rotation, points.T).T + gs_translation
-                self.box_max = np.maximum(self.box_max, np.max(points, axis=0))
+                points = np.dot(gs_rotation, points.T).T + gs_translation #BN: world frame
+                #BN: save bounding box to filter trained gaussians
+                self.box_max = np.maximum(self.box_max, np.max(points, axis=0)) 
                 self.box_min = np.minimum(self.box_min, np.min(points, axis=0))
 
             # save filtered images
@@ -366,17 +373,19 @@ class AssetsManager:
         objects = [f for f in os.listdir(objcts_path) if os.path.isfile(os.path.join(objcts_path, f))]
         for obj in objects:
             if obj == "gaussians_before_removal.ply":
-                continue
+                continue #BN: skip the environment file
             gs_object = InteractiveGaussianModel(self.dataset.sh_degree)
             gs_object.load_ply(os.path.join(objcts_path, obj))
 
             # find close gaussians
             dists, indices = environment.get_close_gaussians(gs_object.get_xyz, 50)
+            #BN: dist shape is (num_object_gaussians, 50)
             min_dists, _ = torch.min(dists, dim=-1)
+            #BN: min_dists shape is (num_object_gaussians, )
 
             # filter environment
-            mask = min_dists >= 0.01
-            environment.filter_by_mask(mask)
+            mask = min_dists >= 0.01 #BN: locate the object gaussians in the environment
+            environment.filter_by_mask(mask) #BN: remove the object gaussians from environment
 
         # save environment
         environment.save_ply(os.path.join(objcts_path, "gaussians.ply"))
