@@ -77,9 +77,11 @@ def main(cfg: DictConfig) -> None:
             trainer = BaseTrainer #BN: Original 3DGaussian
     else:
         if assets.use_depth:
-            trainer = SurfDepthTrainer #BN: 2D Gaussian with depth
+            trainer = SurfDepthTrainer #BN: 2D Gaussian with depth <== this is used
         else:
             trainer = SurfTrainer #BN: 2D Gaussian 
+
+    print(f"Using trainer: {trainer.__name__}") #BN: to see which trainer is used
 
     assets_manager = AssetsManager(source_path, assets_path, trainer, dataset, optimization, pipeline, gaussians_iterations, mesh_iterations)
 

@@ -12,6 +12,7 @@ from drema.drema_scene import DremaScene
 #BN: training logging
 import time
 from torch.utils.tensorboard import SummaryWriter
+import os
 
 class BaseTrainer:
 
@@ -23,7 +24,8 @@ class BaseTrainer:
         #self.checkpoint_iterations = checkpoint_iterations
 
         #BN: logging variables
-        self.tb_writer = SummaryWriter(f"logs/{dataset.model_name}")
+        run_name = os.path.basename(self.dataset.source_path)
+        self.tb_writer = SummaryWriter(f"logs/{dataset.model_name}/{run_name}")
         self.testing_iterations = [1000, 3000, self.opt.iterations]
 
         self.scene = self.create_scene(dataset)
