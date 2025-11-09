@@ -8,8 +8,8 @@ from drema.r2s_builder.gaussians_optimizers.base_optimizer import BaseTrainer
 
 class DepthTrainer(BaseTrainer):
 
-    def __init__(self, dataset, opt, pipe, saving_iterations):
-        super().__init__(dataset, opt, pipe, saving_iterations)
+    def __init__(self, dataset, opt, pipe, saving_iterations, experiment_name="Exp_default"):
+        super().__init__(dataset, opt, pipe, saving_iterations, experiment_name)
 
     def step(self, iteration):
         self.gaussians.update_learning_rate(iteration)

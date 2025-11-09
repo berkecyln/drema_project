@@ -115,7 +115,8 @@ class InteractiveGaussianModel(GaussianModel):
 
 
     def get_close_gaussians(self, Y, K, mask=None):
-        batch_size = 2000  # Process X in smaller batches
+        #BN: it was 2000 but I reduced since I got CUDA out of memory
+        batch_size = 1000  # Process X in smaller batches
         all_topk_indices = []
         all_topk_distances = []
         if mask is None:

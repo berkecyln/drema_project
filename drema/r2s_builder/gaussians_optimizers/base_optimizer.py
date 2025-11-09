@@ -16,7 +16,7 @@ import os
 
 class BaseTrainer:
 
-    def __init__(self, dataset, opt, pipe, saving_iterations):
+    def __init__(self, dataset, opt, pipe, saving_iterations, experiment_name="Exp_default"):
         self.dataset = dataset
         self.opt = opt #BN: mesh optimization options. We have this since mesh extraction also done here
         self.pipe = pipe
@@ -25,7 +25,7 @@ class BaseTrainer:
 
         #BN: logging variables
         run_name = os.path.basename(self.dataset.source_path)
-        self.tb_writer = SummaryWriter(f"logs/{dataset.model_name}/{run_name}")
+        self.tb_writer = SummaryWriter(f"logs/{experiment_name}/{run_name}")
         self.testing_iterations = [1000, 3000, self.opt.iterations]
 
         self.scene = self.create_scene(dataset)
@@ -73,6 +73,9 @@ class BaseTrainer:
         self.viewpoint_stack = None
         ema_loss_for_log = 0.0
         first_iter = 1
+
+        iter_start = time.time()  #BN: ADDED
+
         progress_bar = tqdm(range(first_iter, self.opt.iterations + 1), desc="Training progress")
 
         for iteration in range(first_iter, self.opt.iterations + 1):
@@ -117,7 +120,7 @@ class BaseTrainer:
 
                     if iteration % self.opt.opacity_reset_interval == 0 or (
                             self.dataset.white_background and iteration == self.opt.densify_from_iter):
-                        self.gaussians.reset_opacity()
+                        self.gaussians.reset_opacity() #BN: reason of spikes at 3000 and 6000 since gaussians became transparent
 
                 # Optimizer step
                 if iteration < self.opt.iterations:
@@ -154,44 +157,3 @@ def training_report(tb_writer, iteration, Ll1, loss, elapsed_time, testing_itera
     tb_writer.add_scalar('train/loss_l1', Ll1, iteration)
     tb_writer.add_scalar('train/loss_total', loss, iteration)
     tb_writer.add_scalar('train/time_per_iter', elapsed_time, iteration)
-
-    # Run Validation Loop
-    if iteration in testing_iterations:
-        print(f"\n[ITER {iteration}] Running validation...")
-        
-        total_l1_val = 0.0
-        pipe, background = render_args
-
-        # Set model to eval mode
-        scene.gaussians.eval()
-
-        # Get all test cameras
-        test_cameras = scene.getTestCameras()
-        if not test_cameras:
-            print("No test cameras found, skipping validation imagery.")
-            return
-
-        for view in test_cameras:
-            # Render the validation image
-            render_pkg = render_fn(view, scene.gaussians, pipe, background)
-            image = render_pkg["render"]
-            gt_image = view.original_image.cuda()
-            
-            # Calculate L1 loss for validation
-            total_l1_val += l1_loss(image, gt_image).item()
-
-        # Log average validation metrics
-        avg_l1_val = total_l1_val / len(test_cameras)
-        tb_writer.add_scalar('val/loss_l1', avg_l1_val, iteration)
-        print(f"[ITER {iteration}] Validation L1: {avg_l1_val:.5f}")
-
-        # Log a sample image
-        sample_view = test_cameras[0]
-        render_pkg = render_fn(sample_view, scene.gaussians, pipe, background)
-        
-        # Stack rendered and ground truth images side-by-side
-        combined_image = torch.cat([sample_view.original_image.cuda(), image], dim=2)
-        tb_writer.add_image('val/comparison_gt_vs_render', combined_image, iteration, dataformats='CHW')
-
-        # Set model back to train mode
-        scene.gaussians.train()

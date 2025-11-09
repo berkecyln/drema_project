@@ -1,5 +1,5 @@
 data:
-  source_path: "home/ceylanb/DreMa/sample_data/slide_block_to_color_target_episode0_start"
+  source_path: "/home/ceylanb/DreMa/sample_data/slide_block_to_color_target_episode0_start"
   # put_groceries_in_cupboard_episode1_start
   assets_directory: "output"
   assets_path: "${data.source_path}/${data.assets_directory}"

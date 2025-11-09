@@ -1,4 +1,5 @@
 import os.path
+import time #BN: ADDED
 
 import hydra
 
@@ -47,6 +48,10 @@ def prepare_labels(path):
                 label_name = label_name + "_"+str(counter)
                 counter += 1
             Object_labels[label_name] = value
+    
+    print("Panda Labels: ", Panda_labels)
+    print("Object Labels: ", Object_labels)
+    print("Table Labels: ", Table_labels)
 
     return Panda_labels, Object_labels, Table_labels
 
@@ -83,7 +88,9 @@ def main(cfg: DictConfig) -> None:
 
     print(f"Using trainer: {trainer.__name__}") #BN: to see which trainer is used
 
-    assets_manager = AssetsManager(source_path, assets_path, trainer, dataset, optimization, pipeline, gaussians_iterations, mesh_iterations)
+    experiment_name = f"Experiment_{time.strftime('%Y%m%d-%H%M%S')}" #BN: ADDED
+
+    assets_manager = AssetsManager(source_path, assets_path, trainer, dataset, optimization, pipeline, gaussians_iterations, mesh_iterations, experiment_name)
 
     # Load the data
     assets_manager.load_data()
@@ -91,10 +98,14 @@ def main(cfg: DictConfig) -> None:
     # Extract Environment
     if assets.extract_gaussians_environment:
         #BN: extract mesh environment = false since we use depth to extract table
+        print("================Extracting Environment================")
         assets_manager.extract_environment(assets.extract_mesh_environment)
+        print("================Extracting Environment Done================")
 
     # get labels
+    print("================Preparing Labels================")
     panda_labels, object_labels, table_labels = prepare_labels(os.path.join(source_path, "labels.txt"))
+    print("================Preparing Labels Done================")
 
     # if it needs to extract the table
     if assets.extract_table:
@@ -103,7 +114,9 @@ def main(cfg: DictConfig) -> None:
         assert assets.use_depth, "Extracting objects requires depth to extract the table in the current implementation"
         # get first value of the table labels
         table_labels = list(table_labels.values())[0]
+        print("================Table Extraction================")
         assets_manager.extract_table(table_labels)
+        print("================Table Extraction Done================")
     else:
         # load the table
         assets_manager.load_table()
@@ -112,12 +125,16 @@ def main(cfg: DictConfig) -> None:
         for label_name, value in object_labels.items(): #BN: go over each object label <== LOOP IS HERE
             # extract the object
             #BN: ectract mesh objects = true, extract urdf objects = true
+            print(f"================Extracting Object: {label_name}================")
             assets_manager.extract_asset(value, extract_mesh=assets.extract_mesh_objects, extract_urdf=assets.extract_urdf_objects)
+            print(f"================Extracting Object Done: {label_name}================")
 
     if assets.extract_gaussians_robot: #BN: by default false since we assume we have robot urdf beforehand
         for label_name, value in panda_labels.items():
             # extract the object
+            print(f"================Extracting Robot Part: {label_name}================")
             assets_manager.extract_asset(value, extract_mesh=False, extract_urdf=False)
+            print(f"================Extracting Robot Part Done: {label_name}================")
 
             # move the output to the correct folder
             src = os.path.join(source_path, "output", "objects_ply", str(value) + ".ply")
@@ -126,7 +143,9 @@ def main(cfg: DictConfig) -> None:
             os.rename(src, dst)
 
     if assets.filter_objects_gaussians_environment:
+        print("================Filtering Environment================")
         assets_manager.filter_environment()
+        print("================Filtering Environment Done================")
 
 
 if __name__ == "__main__":
