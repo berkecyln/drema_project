@@ -20,7 +20,9 @@ def main(cfg: DictConfig) -> None:
     builder = Builder(cfg)
 
     # load trajectory
-    trajectory = builder.load_trajectory()
+    #BN: loads singles shot recording recoreded by us
+    #BN: can be disabled by making simulation.trajectory.load_trajectory: False in config file
+    trajectory = builder.load_trajectory() 
 
     # create the cameras
     camera_manager = builder.create_cameras(trajectory)
