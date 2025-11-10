@@ -9,24 +9,26 @@ from drema.gaussian_splatting_utils.loss_utils import l1_loss, ssim
 from drema.gaussian_splatting_utils.mesh_utils import GaussianExtractorDepth
 from drema.scene import Scene
 from drema.drema_scene import DremaScene
-#BN: training logging
+#ADDED ==
 import time
 from torch.utils.tensorboard import SummaryWriter
 import os
+#========
 
 class BaseTrainer:
 
-    def __init__(self, dataset, opt, pipe, saving_iterations, experiment_name="Exp_default"):
+    def __init__(self, dataset, opt, pipe, saving_iterations, experiment_name="Exp_default"): #ADDED: experiment name
         self.dataset = dataset
-        self.opt = opt #BN: mesh optimization options. We have this since mesh extraction also done here
+        self.opt = opt
         self.pipe = pipe
         self.saving_iterations = saving_iterations
         #self.checkpoint_iterations = checkpoint_iterations
 
-        #BN: logging variables
+        #ADDED ==
         run_name = os.path.basename(self.dataset.source_path)
         self.tb_writer = SummaryWriter(f"logs/{experiment_name}/{run_name}")
         self.testing_iterations = [1000, 3000, self.opt.iterations]
+        #========
 
         self.scene = self.create_scene(dataset)
         self.gaussians = self.scene.gaussians
@@ -53,7 +55,6 @@ class BaseTrainer:
             self.viewpoint_stack = self.scene.getTrainCameras().copy()
         viewpoint_cam = self.viewpoint_stack.pop(randint(0, len(self.viewpoint_stack) - 1))
 
-        #BN: background color
         bg = torch.rand((3), device="cuda") if self.opt.random_background else self.background
 
 
@@ -74,7 +75,7 @@ class BaseTrainer:
         ema_loss_for_log = 0.0
         first_iter = 1
 
-        iter_start = time.time()  #BN: ADDED
+        iter_start = time.time()  #ADDED
 
         progress_bar = tqdm(range(first_iter, self.opt.iterations + 1), desc="Training progress")
 
@@ -95,16 +96,15 @@ class BaseTrainer:
                 # training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end),
                 #                testing_iterations, scene, render, (pipe, background))
 
-                #BN: logging add
+                #Added ==
                 iter_end = time.time()
                 elapsed_time = iter_end - iter_start
 
-                # BN: logging call
                 training_report(self.tb_writer, iteration, Ll1.item(), loss.item(), elapsed_time,
                                self.testing_iterations, self.scene, render, (self.pipe, self.background))
                 
-                #BN: logging add
                 iter_start = time.time()
+                #========
 
                 # Densification
                 if iteration < self.opt.densify_until_iter:
@@ -135,7 +135,6 @@ class BaseTrainer:
                     print("\n[ITER {}] Saving Gaussians".format(iteration))
                     self.gaussians_to_save = self.gaussians.clone()
 
-    #BN: called seperatly from AssetManager's extract_assets()
     def extract_mesh(self):
         bg_color = [1, 1, 1] if self.dataset.white_background else [0, 0, 0]
         gaussExtractor = GaussianExtractorDepth(self.gaussians, render_depth, self.pipe, bg_color=bg_color)
@@ -148,7 +147,7 @@ class BaseTrainer:
 
         return mesh
 
-#BN: logging function called inside train()
+#ADDED ==
 def training_report(tb_writer, iteration, Ll1, loss, elapsed_time, testing_iterations, scene, render_fn, render_args):
     if tb_writer is None:
         return 
@@ -157,3 +156,4 @@ def training_report(tb_writer, iteration, Ll1, loss, elapsed_time, testing_itera
     tb_writer.add_scalar('train/loss_l1', Ll1, iteration)
     tb_writer.add_scalar('train/loss_total', loss, iteration)
     tb_writer.add_scalar('train/time_per_iter', elapsed_time, iteration)
+#========

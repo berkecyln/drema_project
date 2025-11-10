@@ -10,16 +10,16 @@ preparation:
 
 
 assets:
-  use_original_guassians: False #BN: if its True we select different Trainer
+  use_original_guassians: False
   use_depth: True
   gaussians_iterations: 7_000
   extract_gaussians_objects: True
   extract_table: True
   extract_mesh_objects: True
   extract_urdf_objects: True
-  extract_gaussians_robot: False #BN: Since URDF files is provided manually no need 
+  extract_gaussians_robot: False
   extract_gaussians_environment: True
-  extract_mesh_environment: False #BN Since env is filtered out from objects before mesh
+  extract_mesh_environment: False
   filter_objects_gaussians_environment: True
 
 
@@ -31,10 +31,10 @@ reference_frame:
 
 
 model:
-  sh_degree: 3 #BN: scene/env lighting. High values make possible capture finer spatial detail
+  sh_degree: 3
   images: "images"
-  resolution: -1 #BN : -1 means original resolution/no explicit resizing
-  white_background: False #BN: keeps the original background
+  resolution: -1
+  white_background: False
   data_device: "cuda"
   eval:
   source_path: ""
@@ -44,7 +44,7 @@ pipeline:
   convert_SHs_python: False
   compute_cov3D_python: False
   depth_ratio: 0.0
-  debug: True #BN: Normally False 
+  debug: True 
 
 optimization:
   iterations: 7_000

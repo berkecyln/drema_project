@@ -1,0 +1,198 @@
+simulation:
+  visualization:
+    visualize: true
+    visualize_training_cameras: true
+    visualize_trajectory_cameras: false
+    pybullet_camera: true
+    camera_id: 0
+    scale: 1
+    transform_matrix:
+    - - -1.0
+      - 0.0
+      - 0.0
+    - - 0.0
+      - 1.0
+      - 0.0
+    - - 0.0
+      - 0.0
+      - -1.0
+  environment:
+    load_environment: true
+    labels_file: labels.txt
+    filter_labels: true
+    load_trajectory_cameras: false
+    load_training_cameras: false
+  objects:
+    objects_list:
+    - All
+    fixed_objects:
+    - shape_sorter
+    - shape_sorter_visual
+    - rack_bottom_visual
+    - rack_top_visual
+    - jar1
+    - jar0
+    not_collidable_objects:
+    - success_visual
+    - pillar1
+    - pillar2
+    - pillar0
+    - cupboard
+    flat_surface_dir: flat_surface
+    flat_surface_file: flat_surface_mesh.urdf
+    urdf_dir: urdf
+    gaussians_dir: objects_ply
+    environment_file: gaussians.ply
+  output:
+    filter_depth: true
+    radius_filter: false
+    threshold: 3
+  trajectory:
+    offset:
+    - 0
+    - 0
+    - 0
+    load_trajectory: true
+    remove_initial_part_trajectory: true
+    remove_initial_part_trajectory_steps: 30
+    execute_trajectory: false
+    keypoint_threshold: 0.015
+    waypoint_threshold: 0.05
+    trajectory_file: dictionary.pkl
+    max_waypoint_steps: 100
+    update_wrist_camera: true
+  robot:
+    simulate_robot: true
+    robot_urdf: ./assets/franka_panda/panda.urdf
+    robot_gaussians_dir: ./assets/robot_surf_gaussians
+    connected_joints:
+    - -1
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 9
+    - 8
+    initial_position:
+    - -0.01
+    - 0.0
+    - 0.01
+    initial_orientation:
+    - 0
+    - 0
+    - 0
+    initial_gripper_joint_positions:
+    - 0.04
+    - 0.04
+    initial_joint_positions:
+    - 2.05e-07
+    - 0.1745
+    - 1.894e-06
+    - -0.8727
+    - -6.537e-06
+    - 1.2217
+    - 0.7854
+    end_effector_rotation:
+    - 0
+    - 0
+    - -45
+    right_finger_index: 8
+    left_finger_index: 9
+    grasp_index: 10
+    wrist_camera_index: 11
+  generation:
+    generated_data_path: ./data/generated_data
+    generate_data: true
+    scale: 4
+    save_images: true
+    rotate_environment: true
+    rotate_environment_step: 30
+    rotation_center:
+    - 0.3
+    - 0.0
+    - 0.0
+    translate_environment: true
+    translation_values:
+    - 0
+    - 0.15
+    - -0.15
+    rotate_objects: true
+    rotation_objects_step: 20
+    threshold: 0.035
+training:
+  preparation:
+    rgb_folder: images
+    depth_folder: depth
+    depth_format: np
+    depth_scale: 1
+    depth_compressed: true
+    label_file: labels.txt
+    merge_labels: true
+    object_mask_folder: object_masks
+  assets:
+    use_original_guassians: false
+    use_depth: true
+    gaussians_iterations: 7000
+    extract_gaussians_objects: true
+    extract_table: true
+    extract_mesh_objects: true
+    extract_urdf_objects: true
+    extract_gaussians_robot: false
+    extract_gaussians_environment: true
+    extract_mesh_environment: false
+    filter_objects_gaussians_environment: true
+  reference_frame:
+    compute_colmap: false
+    poses_folder: poses
+    change_reference_frame: false
+    align_colmap_reference: false
+  model:
+    sh_degree: 3
+    images: images
+    resolution: -1
+    white_background: false
+    data_device: cuda
+    eval: null
+    source_path: ''
+    depths: depth_scaled
+  pipeline:
+    convert_SHs_python: false
+    compute_cov3D_python: false
+    depth_ratio: 0.0
+    debug: true
+  optimization:
+    iterations: 7000
+    position_lr_init: 0.00016
+    position_lr_final: 1.6e-06
+    position_lr_delay_mult: 0.01
+    position_lr_max_steps: 30000
+    feature_lr: 0.0025
+    opacity_lr: 0.05
+    scaling_lr: 0.005
+    rotation_lr: 0.001
+    percent_dense: 0.01
+    lambda_dssim: 0.2
+    lambda_depth: 0.5
+    lambda_normal: 0.05
+    lambda_dist: 0.0
+    densification_interval: 100
+    opacity_reset_interval: 3000
+    densify_from_iter: 500
+    densify_until_iter: 15000
+    densify_grad_threshold: 0.0002
+    random_background: false
+    voxel_size: -1.0
+    depth_trunc: -1.0
+    sdf_trunc: -1.0
+    num_cluster: 50
+    unbounded: false
+    mesh_res: 1024
+data:
+  source_path: /home/ceylanb/DreMa/sample_data/slide_block_to_color_target_episode0_start
+  assets_directory: output
+  assets_path: ${data.source_path}/${data.assets_directory}
+  trajectory_file: ${data.source_path}/dictionary.pkl

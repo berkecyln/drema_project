@@ -16,12 +16,11 @@ from drema.utils.point_cloud_utils import project_depth
 
 
 class AssetsManager:
-    def __init__(self, source_path, assets_path, optimizer, dataset, opt, pipe, gaussians_iterations, mesh_iterations, experiment_name="Exp_default"):
+    def __init__(self, source_path, assets_path, optimizer, dataset, opt, pipe, gaussians_iterations, mesh_iterations, experiment_name="Exp_default"): #ADDED: experiment name
 
         self.source_path = source_path
         self.assets_path = assets_path
 
-        #BN: load data containers
         self.rgb_images = []
         self.depth_images = []
         self.camera_params = []
@@ -48,7 +47,7 @@ class AssetsManager:
         self.opt = opt
         self.pipe = pipe
 
-        self.experiment_name = experiment_name #BN: ADDED
+        self.experiment_name = experiment_name #ADDED
 
         # iterations
         self.gaussians_iterations = gaussians_iterations
@@ -74,7 +73,7 @@ class AssetsManager:
         images_dir_path = os.path.join(self.source_path, "images")
         depth_dir_path = os.path.join(self.source_path, "depth_scaled")
         masks_dir_path = os.path.join(self.source_path, "object_mask")
-        poses_dir_path = os.path.join(self.source_path, "poses") #BN: camera poses
+        poses_dir_path = os.path.join(self.source_path, "poses")
 
         self.poses_paths = [f for f in os.listdir(poses_dir_path) if os.path.isfile(os.path.join(poses_dir_path, f))]
         self.poses_paths.sort()
@@ -94,7 +93,6 @@ class AssetsManager:
             if "_near_far.txt" in pose:
                 continue
             name = pose.split(".")[0]
-            #BN: extract pose folder (it must be same as README because it is hard coded extraction)
             rotation, translation, intrinsics = read_pose_file(os.path.join(poses_dir_path, pose)) 
             camera_params[name] = (translation, rotation, intrinsics)
 
@@ -138,12 +136,12 @@ class AssetsManager:
         self.dataset.source_path = self.new_path
 
         # train gaussians
-        print(f"-----Training Gaussians for Asset: {id}-----")
-        gs_to_save, gs_to_mesh, trainer = self.train_gaussians() #BN: Wrapper around Trainer
-        print(f"-----Training Gaussians Done for Asset: {id}-----")
+        print(f"-----Training Gaussians for Asset: {id}-----") #ADDED
+        gs_to_save, gs_to_mesh, trainer = self.train_gaussians()
+        print(f"-----Training Gaussians Done for Asset: {id}-----") #ADDED
 
         # restore source path
-        shutil.rmtree(self.new_path) #BN: after training delete the filtered data tree
+        shutil.rmtree(self.new_path)
         self.dataset.source_path = self.source_path
 
         # filter gaussians
@@ -155,9 +153,9 @@ class AssetsManager:
             output_path_ply = os.path.join(self.assets_path, "objects_ply")
             os.makedirs(output_path_ply, exist_ok=True)
             gs_to_save.save_ply(os.path.join(output_path_ply, str(id) + ".ply"))
-        print(f"-----Mesh Extraction for {id}-----")
+        print(f"-----Mesh Extraction for {id}-----") #ADDED
         if extract_mesh:
-            mesh = trainer.extract_mesh()#BN: Trainer method
+            mesh = trainer.extract_mesh()
             self.filter_mesh(mesh)
             mesh_path = os.path.join(self.assets_path, "meshes")
             os.makedirs(mesh_path, exist_ok=True)
@@ -165,32 +163,31 @@ class AssetsManager:
 
             if extract_urdf:
                 self.urdf_builder.build_urdf_object(mesh, str(id))
-        print(f"-----Mesh Extraction Done for {id}-----")
+        print(f"-----Mesh Extraction Done for {id}-----") #ADDED
 
     def extract_environment(self, extract_mesh=False):
         self.dataset.source_path = self.source_path
 
         # train gaussians
-        print("-----Training Gaussians for Environment-----")
+        print("-----Training Gaussians for Environment-----") #ADDED
         gs_to_save, gs_to_mesh, trainer = self.train_gaussians()
-        print("-----Training Gaussians Done for Environment-----")
+        print("-----Training Gaussians Done for Environment-----") #ADDED
 
         if len(gs_to_save.get_xyz) > 50:
             output_path_ply = os.path.join(self.assets_path, "objects_ply")
             os.makedirs(output_path_ply, exist_ok=True)
-            #BN: will be filtered by filter_environment()
             gs_to_save.save_ply(os.path.join(output_path_ply, "gaussians_before_removal.ply")) 
 
-        print("-----Mesh Extraction for Environment-----")
-        if extract_mesh: #BN: not used by default since this env will filtered
-            mesh = trainer.extract_mesh()#BN: no mesh extract here in default
+        print("-----Mesh Extraction for Environment-----") #ADDED
+        if extract_mesh:
+            mesh = trainer.extract_mesh()
             mesh_path = os.path.join(self.assets_path, "meshes")
             os.makedirs(mesh_path, exist_ok=True)
             o3d.io.write_triangle_mesh(os.path.join(mesh_path, "environment.obj"), mesh)
-        print("-----Mesh Extraction Done for Environment-----")
+        print("-----Mesh Extraction Done for Environment-----") #ADDED
 
     def train_gaussians(self, extract_mesh=False):
-        trainer = self.optimizer(self.dataset, self.opt, self.pipe, self.gaussians_iterations, self.experiment_name) #BN: added experiment name
+        trainer = self.optimizer(self.dataset, self.opt, self.pipe, self.gaussians_iterations, self.experiment_name) #ADDED: experiment name
         trainer.train()
 
         # get guassians to save and gaussians to mesh
@@ -199,8 +196,6 @@ class AssetsManager:
 
         return gaussians_to_save, gaussians_for_mesh, trainer
 
-    #BN: IMPORTANT table extraction does not depend on gaussian splat it creates
-    #BN: the surface directy from depth images via piont cloud and ransac
     def extract_table(self, table_id):
         # read segmentation masks and depth maps to extract table points
         table_points = []
@@ -209,40 +204,38 @@ class AssetsManager:
             depth_image = self.depth_images[k]
 
             gs_translation, gs_rotation, intrinsics = self.camera_params[k]
-            #BN: create the point cloud data based on camera frame only for table mask
             points = project_depth(depth_image, intrinsics)[(mask == table_id).reshape(-1)]
-            #BN: transform point cloud to world frame 
             points = np.dot(gs_rotation, points.T).T + gs_translation
 
             table_points.append(points)
         
-        table_points = np.concatenate(table_points, axis=0)#BN: merge all world frame points
+        table_points = np.concatenate(table_points, axis=0)
         assert table_points.shape[0] > 0, "No table points found."
-        print(f"-----Number of table points: {table_points.shape[0]}-----")
+        print(f"-----Number of table points: {table_points.shape[0]}-----") #ADDED
         # downsample the points
         if table_points.shape[0] > 50000:
             table_points = table_points[np.random.choice(table_points.shape[0], 50000, replace=False), :]
-        print(f"-----Number of table points after downsampling: {table_points.shape[0]}-----")
+        print(f"-----Number of table points after downsampling: {table_points.shape[0]}-----") #ADDED
         # create point cloud
         table = o3d.geometry.PointCloud()
         table.points = o3d.utility.Vector3dVector(table_points)
-        print(f"-----Number of table points after creating point cloud: {len(table.points)}-----")
+        print(f"-----Number of table points after creating point cloud: {len(table.points)}-----") #ADDED
         # remove outliers
         table, _ = table.remove_radius_outlier(nb_points=16, radius=0.05)
-        print(f"-----Number of table points after removing outliers: {len(table.points)}-----")
+        print(f"-----Number of table points after removing outliers: {len(table.points)}-----") #ADDED
         # compute plane from the point cloud
-        plane_coordinates, plane_index_points = table.segment_plane(0.01, 3, 1000) #BN: uses ransac
-        print(f"-----Plane equation (ransac): {plane_coordinates[0]:.4f}x + {plane_coordinates[1]:.4f}y + {plane_coordinates[2]:.4f}z + {plane_coordinates[3]:.4f} = 0 -----")
+        plane_coordinates, plane_index_points = table.segment_plane(0.01, 3, 1000) 
+        print(f"-----Plane equation (ransac): {plane_coordinates[0]:.4f}x + {plane_coordinates[1]:.4f}y + {plane_coordinates[2]:.4f}z + {plane_coordinates[3]:.4f} = 0 -----") #ADDED
         # create a point cloud of the plane
-        plane_cloud = table.select_by_index(plane_index_points)#BN: filter plane points
-        center = np.mean(np.array(plane_cloud.points), axis=0) #BN: find center of table
-        plane_cloud = plane_cloud.translate(-center)#BN: move table so its in (0,0,0)
-        print(f"-----Number of table after filtering plane points: {len(plane_cloud.points)}-----")
+        plane_cloud = table.select_by_index(plane_index_points)
+        center = np.mean(np.array(plane_cloud.points), axis=0) 
+        plane_cloud = plane_cloud.translate(-center)
+        print(f"-----Number of table after filtering plane points: {len(plane_cloud.points)}-----") #ADDED
 
         # compute hull of the plane
-        hull, _ = plane_cloud.compute_convex_hull()#BN: basically mesh creation
+        hull, _ = plane_cloud.compute_convex_hull()
         #hull_mesh = o3d.geometry.LineSet.create_from_triangle_mesh(hull)
-        print(f"-----Mesh creation for table done, area: {hull.get_surface_area():.4f}-----")
+        print(f"-----Mesh creation for table done, area: {hull.get_surface_area():.4f}-----") #ADDED
 
         self.table_mesh = hull
         self.table_position = center
@@ -252,13 +245,13 @@ class AssetsManager:
         print("-----URDF for table builted-----")
 
         # Get points from convex hull
-        self.hull_points = np.asarray(self.table_mesh.vertices)#BN: get the vertices of table
+        self.hull_points = np.asarray(self.table_mesh.vertices)
 
         # move the table to the original position
-        self.hull_points = self.hull_points + center #BN: put table old position
+        self.hull_points = self.hull_points + center 
 
         # Create a Delaunay triangulation
-        self.delaunay = scipy.spatial.Delaunay(self.hull_points)#BN:create fast lookup structure
+        self.delaunay = scipy.spatial.Delaunay(self.hull_points)
 
     def filter_mesh(self, mesh):
         # Get points from the original point cloud
@@ -273,8 +266,6 @@ class AssetsManager:
         mesh.remove_vertices_by_mask(inside_mask | below_table_mask)
 
     def filter_input_data(self, id):
-        #BN: Here they basically mirror current folder structure under filtered_ID
-        #BN: then they filter rgb, depth, mask images based on object id
         self.new_path = os.path.join(self.source_path, "filtered_" + str(id))
         print("Filtering data for object: ", id)
         print("New path: ", self.new_path)
@@ -309,20 +300,16 @@ class AssetsManager:
 
             # create a filter mask
             filter_mask = np.zeros(mask.shape, dtype=np.uint8)
-            filter_mask[mask != id] = 1 #BN: set white everywhere except object id
-            filter_mask = cv2.dilate(filter_mask, self.kernel) #BN: make white the borders of the object so to handle messy points
-            #BN: object pixels are 0, rest is 1 so object is False, rest is True
+            filter_mask[mask != id] = 1 
+            filter_mask = cv2.dilate(filter_mask, self.kernel) 
             filter_mask = filter_mask.astype(bool)
 
             # update bounding box params
             gs_translation, gs_rotation, intrinsics = camera_params[k]
-            #BN: ~ inverts the mask so normally our object is labeled
-            #BN: since we invert we only get ~(False) = True from point cloud
             points = project_depth(depth_images[k], intrinsics)[~filter_mask.reshape(-1)]
 
             if len(points) > 0:
-                points = np.dot(gs_rotation, points.T).T + gs_translation #BN: world frame
-                #BN: save bounding box to filter trained gaussians
+                points = np.dot(gs_rotation, points.T).T + gs_translation 
                 self.box_max = np.maximum(self.box_max, np.max(points, axis=0)) 
                 self.box_min = np.minimum(self.box_min, np.min(points, axis=0))
 
@@ -384,24 +371,22 @@ class AssetsManager:
         # objects to remove
         objects = [f for f in os.listdir(objcts_path) if os.path.isfile(os.path.join(objcts_path, f))]
         for obj in objects:
-            print(f"-----Filtering Object: {obj}-----")
+            print(f"-----Filtering Object: {obj}-----") #ADDED
             if obj == "gaussians_before_removal.ply":
-                continue #BN: skip the environment file
+                continue 
             gs_object = InteractiveGaussianModel(self.dataset.sh_degree)
             gs_object.load_ply(os.path.join(objcts_path, obj))
 
             # find close gaussians
             dists, indices = environment.get_close_gaussians(gs_object.get_xyz, 50)
-            print(f"Number of close gaussians found: {dists.shape[0]}")
-            #BN: dist shape is (num_environment_gaussians, 50)
+            print(f"Number of close gaussians found: {dists.shape}") #ADDED
             min_dists, _ = torch.min(dists, dim=-1)
-            #BN: min_dists shape is (num_environment_gaussians, )
-            print(f"Min dist: {min_dists.min().item():.4f}, Max dist: {min_dists.max().item():.4f}")
+            print(f"Shape after min dists: {min_dists.shape}") #ADDED
 
             # filter environment
-            mask = min_dists >= 0.01 #BN: locate the object gaussians in the environment
-            environment.filter_by_mask(mask) #BN: remove the object gaussians from environment
-            print(f"-----Filtering Object Done: {obj}-----")
+            mask = min_dists >= 0.01 
+            environment.filter_by_mask(mask) 
+            print(f"-----Filtering Object Done: {obj}-----") #ADDED
 
         # save environment
         environment.save_ply(os.path.join(objcts_path, "gaussians.ply"))

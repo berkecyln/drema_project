@@ -1,7 +1,6 @@
 
 import torch
 import math
-#BN: difference is here
 from diff_gaussian_rasterization_depth import GaussianRasterizationSettings, GaussianRasterizer
 from drema.scene.gaussian_model import GaussianModel
 from drema.gaussian_splatting_utils.sh_utils import eval_sh
@@ -76,7 +75,6 @@ def render_depth(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tens
 
     # Rasterize visible Gaussians to image, obtain their radii (on screen).
 
-    #BN: difference from original renderer return depth map and weight map
     rendered_image, radii, depth_map, weight_map = rasterizer(
         means3D=means3D,
         means2D=means2D,
