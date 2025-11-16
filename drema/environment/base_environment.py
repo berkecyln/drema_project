@@ -65,7 +65,8 @@ class Environment:
             self.gs.add_environment_gaussians(self.environment_path)
 
             # filter the gaussians
-            self.gs.filter_object_gaussians()
+            #BN: this function does not any effect and duplicate idea from create_simulation's assets_manager.filter_environment()
+            self.gs.filter_object_gaussians() 
 
         # set the gaussians mask for each object
         labels = self.gs.get_labels()
