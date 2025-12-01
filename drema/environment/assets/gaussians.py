@@ -113,6 +113,7 @@ class GaussianWrapper:
         labels = labels[dists < 0.01]
 
         # change the lables of the close gaussians
+        #BN: the line below do nothing it basaivlly assigns x = x
         self.labels[close] = labels
 
     def filter_robot_gaussians(self, robot_labels):
