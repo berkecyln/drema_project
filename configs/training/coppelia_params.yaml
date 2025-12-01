@@ -44,7 +44,7 @@ pipeline:
   convert_SHs_python: False
   compute_cov3D_python: False
   depth_ratio: 0.0
-  debug: False
+  debug: True 
 
 optimization:
   iterations: 7_000

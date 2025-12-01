@@ -9,17 +9,26 @@ from drema.gaussian_splatting_utils.loss_utils import l1_loss, ssim
 from drema.gaussian_splatting_utils.mesh_utils import GaussianExtractorDepth
 from drema.scene import Scene
 from drema.drema_scene import DremaScene
-
-
+#ADDED ==
+import time
+from torch.utils.tensorboard import SummaryWriter
+import os
+#========
 
 class BaseTrainer:
 
-    def __init__(self, dataset, opt, pipe, saving_iterations):
+    def __init__(self, dataset, opt, pipe, saving_iterations, experiment_name="Exp_default"): #ADDED: experiment name
         self.dataset = dataset
         self.opt = opt
         self.pipe = pipe
         self.saving_iterations = saving_iterations
         #self.checkpoint_iterations = checkpoint_iterations
+
+        #ADDED ==
+        run_name = os.path.basename(self.dataset.source_path)
+        self.tb_writer = SummaryWriter(f"logs/{experiment_name}/{run_name}")
+        self.testing_iterations = [1000, 3000, self.opt.iterations]
+        #========
 
         self.scene = self.create_scene(dataset)
         self.gaussians = self.scene.gaussians
@@ -65,6 +74,9 @@ class BaseTrainer:
         self.viewpoint_stack = None
         ema_loss_for_log = 0.0
         first_iter = 1
+
+        iter_start = time.time()  #ADDED
+
         progress_bar = tqdm(range(first_iter, self.opt.iterations + 1), desc="Training progress")
 
         for iteration in range(first_iter, self.opt.iterations + 1):
@@ -81,9 +93,18 @@ class BaseTrainer:
                     progress_bar.close()
 
                 # Log and save
-                #training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end),
+                # training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end),
                 #                testing_iterations, scene, render, (pipe, background))
 
+                #Added ==
+                iter_end = time.time()
+                elapsed_time = iter_end - iter_start
+
+                training_report(self.tb_writer, iteration, Ll1.item(), loss.item(), elapsed_time,
+                               self.testing_iterations, self.scene, render, (self.pipe, self.background))
+                
+                iter_start = time.time()
+                #========
 
                 # Densification
                 if iteration < self.opt.densify_until_iter:
@@ -99,7 +120,7 @@ class BaseTrainer:
 
                     if iteration % self.opt.opacity_reset_interval == 0 or (
                             self.dataset.white_background and iteration == self.opt.densify_from_iter):
-                        self.gaussians.reset_opacity()
+                        self.gaussians.reset_opacity() #BN: reason of spikes at 3000 and 6000 since gaussians became transparent
 
                 # Optimizer step
                 if iteration < self.opt.iterations:
@@ -125,3 +146,14 @@ class BaseTrainer:
         mesh = gaussExtractor.extract_mesh_bounded(voxel_size=voxel_size, sdf_trunc=sdf_trunc, depth_trunc=depth_trunc)
 
         return mesh
+
+#ADDED ==
+def training_report(tb_writer, iteration, Ll1, loss, elapsed_time, testing_iterations, scene, render_fn, render_args):
+    if tb_writer is None:
+        return 
+
+    # Log Training Stats
+    tb_writer.add_scalar('train/loss_l1', Ll1, iteration)
+    tb_writer.add_scalar('train/loss_total', loss, iteration)
+    tb_writer.add_scalar('train/time_per_iter', elapsed_time, iteration)
+#========

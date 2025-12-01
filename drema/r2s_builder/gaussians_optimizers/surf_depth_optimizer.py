@@ -12,8 +12,8 @@ from drema.r2s_builder.gaussians_optimizers.base_optimizer import BaseTrainer
 
 class SurfDepthTrainer(BaseTrainer):
 
-    def __init__(self, dataset, opt, pipe, saving_iterations):
-        super().__init__(dataset, opt, pipe, saving_iterations)
+    def __init__(self, dataset, opt, pipe, saving_iterations, experiment_name="Exp_default"):
+        super().__init__(dataset, opt, pipe, saving_iterations, experiment_name)
 
     def create_scene(self, dataset):
         return DremaScene(dataset, SurfInteractiveGaussianModel(dataset.sh_degree))
@@ -42,7 +42,7 @@ class SurfDepthTrainer(BaseTrainer):
 
         # regularization
         lambda_normal = self.opt.lambda_normal if iteration > 7000 else 0.0
-        lambda_dist = self.opt.lambda_dist if iteration > 3000 else 0.0
+        lambda_dist = self.opt.lambda_dist if iteration > 3000 else 0.0 #BN: reason of huge spike at 3000 since we exclude dist loss before
 
         rend_dist = render_pkg["rend_dist"]
         rend_normal = render_pkg['rend_normal']

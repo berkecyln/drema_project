@@ -20,7 +20,7 @@ def main(cfg: DictConfig) -> None:
     builder = Builder(cfg)
 
     # load trajectory
-    trajectory = builder.load_trajectory()
+    trajectory = builder.load_trajectory() 
 
     # create the cameras
     camera_manager = builder.create_cameras(trajectory)
@@ -78,7 +78,7 @@ def main(cfg: DictConfig) -> None:
         # if the simulation is visualized
         if cfg.simulation.visualization.visualize:
 
-            if cfg.simulation.trajectory.update_wrist_camera:
+            if cfg.simulation.trajectory.update_wrist_camera and cfg.simulation.robot.simulate_robot:
                 # get the wrist camera position on the robot
                 translation, rotation = env.get_wrist_camera_extrinsics()
                 camera_manager.update_camera_extrinsics("wrist", rotation, translation)

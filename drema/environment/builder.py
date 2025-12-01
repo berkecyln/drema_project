@@ -223,7 +223,7 @@ class Builder:
             trajectory = None
         return trajectory
 
-    def create_environment(self, trajectory=None):
+    def create_environment(self, trajectory=None, objects=True):
         """
         Create the environment
         :return: the environment
@@ -233,7 +233,10 @@ class Builder:
         pipe_args = self.create_pipe_args()
 
         # create the objects configurations
-        objects = self.create_objets_configurations()
+        if self.args.simulation.environment.simulate_objects:
+            objects = self.create_objets_configurations()
+        else:
+            objects = None
 
         # create the flat surface configuration
         flat_surface = self.create_flat_surface_configuration()

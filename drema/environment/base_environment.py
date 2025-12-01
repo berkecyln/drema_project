@@ -22,11 +22,12 @@ class Environment:
 
         # for each object in the dictionary "objects"
         self.objects = {}
-        for name, obj in objects.items():
-            # create the simple object
-            self.objects[name] = Object(name, obj["urdf_path"], obj["gaussians_path"], obj["initial_position"],
-                                        obj["initial_orientation"], obj["collidable"], obj["fixed"], obj["mass"],
-                                        obj["lateral_friction"], obj["spinning_friction"], obj["rolling_friction"])
+        if objects is not None:
+            for name, obj in objects.items():
+                # create the simple object
+                self.objects[name] = Object(name, obj["urdf_path"], obj["gaussians_path"], obj["initial_position"],
+                                            obj["initial_orientation"], obj["collidable"], obj["fixed"], obj["mass"],
+                                            obj["lateral_friction"], obj["spinning_friction"], obj["rolling_friction"])
 
         # pybullet client
         self.client = pybullet # pybullet client
@@ -65,7 +66,8 @@ class Environment:
             self.gs.add_environment_gaussians(self.environment_path)
 
             # filter the gaussians
-            self.gs.filter_object_gaussians()
+            #BN: this function does not any effect and duplicate idea from create_simulation's assets_manager.filter_environment()
+            self.gs.filter_object_gaussians() 
 
         # set the gaussians mask for each object
         labels = self.gs.get_labels()

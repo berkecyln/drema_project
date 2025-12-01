@@ -9,8 +9,8 @@ from drema.r2s_builder.gaussians_optimizers.base_optimizer import BaseTrainer
 
 class SurfTrainer(BaseTrainer):
 
-    def __init__(self, dataset, opt, pipe, saving_iterations):
-        super().__init__(dataset, opt, pipe, saving_iterations)
+    def __init__(self, dataset, opt, pipe, saving_iterations, experiment_name="Exp_default"):
+        super().__init__(dataset, opt, pipe, saving_iterations, experiment_name)
 
     def create_scene(self, dataset):
         return DremaScene(dataset, SurfInteractiveGaussianModel(dataset.sh_degree))
