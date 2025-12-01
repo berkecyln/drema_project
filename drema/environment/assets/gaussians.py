@@ -97,6 +97,10 @@ class GaussianWrapper:
         #TODO: CHECK THIS FUNCTION
         objects_mask = self.labels > 0
 
+        # If there are no object gaussians, return
+        if objects_mask.sum() == 0:
+            return  
+
         # compute the knn between objects and environment
         dists, indices = self.gs.get_close_gaussians(self.gs.get_xyz[objects_mask], 20)
         dists = dists.flatten()

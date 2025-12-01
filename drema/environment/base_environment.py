@@ -22,11 +22,12 @@ class Environment:
 
         # for each object in the dictionary "objects"
         self.objects = {}
-        for name, obj in objects.items():
-            # create the simple object
-            self.objects[name] = Object(name, obj["urdf_path"], obj["gaussians_path"], obj["initial_position"],
-                                        obj["initial_orientation"], obj["collidable"], obj["fixed"], obj["mass"],
-                                        obj["lateral_friction"], obj["spinning_friction"], obj["rolling_friction"])
+        if objects is not None:
+            for name, obj in objects.items():
+                # create the simple object
+                self.objects[name] = Object(name, obj["urdf_path"], obj["gaussians_path"], obj["initial_position"],
+                                            obj["initial_orientation"], obj["collidable"], obj["fixed"], obj["mass"],
+                                            obj["lateral_friction"], obj["spinning_friction"], obj["rolling_friction"])
 
         # pybullet client
         self.client = pybullet # pybullet client
