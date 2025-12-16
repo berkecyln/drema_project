@@ -23,6 +23,8 @@ if ROBOT_IO_PATH not in sys.path:
 os.chdir(ROBOT_IO_PATH)
 
 import time
+import cv2
+import datetime
 from dataclasses import dataclass
 import numpy as np
 import hydra
@@ -30,7 +32,11 @@ from omegaconf import DictConfig
 from scipy.spatial.transform import Rotation
 
 
+
 from robot_io.robot_interface.panda_franky_interface import NE_T_EE 
+
+DREMA_PROJECT_PATH = "/home/ceylanb/DreMa/drema_project"
+INPUT_PATH = os.path.join(DREMA_PROJECT_PATH, "input")
 
 # CONFIGURATION PARAMETERS
 
@@ -51,7 +57,7 @@ class MovementConfig:
     INITIAL_POS, INITIAL_ORN = None, None
 
     FLIP = False          # Whether to flip orientation 180 degrees around Y-axis
-    NUM_WAYPOINTS: int = 150        # Number of points along the arch
+    NUM_WAYPOINTS: int = 25        # Number of points along the arch
 # Global config instance
 CONFIG = MovementConfig()
 
@@ -60,7 +66,7 @@ CONFIG = MovementConfig()
 def move(robot, direction: str):
     """Move the robot in X, Y, Z axis of the workspace.
     X -> +X for forward, -X for backward
-    Y -> +Y for right, -Y for left
+    Y -> +Y for left, -Y for right
     Z -> +Z for up, -Z for down
     
     Args:
@@ -98,7 +104,7 @@ def move(robot, direction: str):
     
     # Execute movement
     print("Executing movement...")
-    robot.move_cart_pos_abs_ptp(target_pos, current_orn)
+    robot.move_cart_pos_abs_lin(target_pos, current_orn)
 
     print("Movement completed")
 
@@ -173,18 +179,18 @@ def create_bezier_points(robot) -> tuple:
         print(f"Flipped initial orientation 180° around Y-axis")
     
     start_pos = initial_pos.copy()
-    START = np.array([start_pos[0] , start_pos[1] - 0.4, start_pos[2] - 0.3])  # Start point of the arch (X, Y, Z)
+    START = np.array([start_pos[0] , start_pos[1] - 0.4, start_pos[2] - 0.2])  # Start point of the arch (X, Y, Z)
     end_pos = initial_pos.copy()
-    END = np.array([end_pos[0], end_pos[1] + 0.3, end_pos[2] - 0.3]) # End point of the arch (X, Y, Z)
+    END = np.array([end_pos[0], end_pos[1] + 0.3, end_pos[2] - 0.2]) # End point of the arch (X, Y, Z)
     corner_pos = initial_pos.copy()
-    CORNER = np.array([corner_pos[0]- 0.1, corner_pos[1], corner_pos[2] + 0.4])  # Puller point for the arch (X, Y, Z)
+    CORNER = np.array([corner_pos[0]- 0.1, corner_pos[1], corner_pos[2] + 0.5])  # Puller point for the arch (X, Y, Z)
 
     
-    START2 = np.array([start_pos[0] + 0.1, start_pos[1] - 0.3, start_pos[2] - 0.3])
-    END2 = np.array([end_pos[0] - 0.1, end_pos[1] + 0.3, end_pos[2] - 0.3])             
+    START2 = np.array([start_pos[0] + 0.1, start_pos[1] - 0.3, start_pos[2] - 0.2])
+    END2 = np.array([end_pos[0] - 0.1, end_pos[1] + 0.3, end_pos[2] - 0.2])             
 
-    START3 = np.array([start_pos[0] +  0.1, start_pos[1] + 0.3, start_pos[2] - 0.3]) 
-    END3 = np.array([end_pos[0] - 0.1, end_pos[1] - 0.4, end_pos[2] - 0.3])
+    START3 = np.array([start_pos[0] +  0.1, start_pos[1] + 0.3, start_pos[2] - 0.2]) 
+    END3 = np.array([end_pos[0] - 0.1, end_pos[1] - 0.4, end_pos[2] - 0.2])
 
     return START, END, CORNER, START2, END2, START3, END3, initial_pos , initial_orn
 
@@ -202,29 +208,6 @@ def calculate_center(start, end) -> np.array:
     #print(f"Calculated center point: X={center[0]:.3f}, Y={center[1]:.3f}, Z={center[2]:.3f}")
 
     return center
-
-def calculate_tangent(t: float, start: np.array, corner: np.array, end: np.array) -> np.array:
-    """Calculate the tangent vector at parameter t on a Quadratic Bézier Curve.
-        We are taking derivative of:
-        P(t) = (1-t)^2 * Start + 2(1-t)t * Corner + t^2 * End
-        Which gives us:
-        P'(t) = 2(1-t)(Corner - Start) + 2 t(End - Corner)
-        
-    Args:
-        t: float, parameter along the curve (0 <= t <= 1)
-        start: np.array, start point of the curve
-        corner: np.array, control point of the curve
-        end: np.array, end point of the curve
-    
-    Returns:
-        tangent: np.array, normilized tangent vector at point t
-    """
-    tangent = 2 * (1 - t) * (corner - start) + 2 * t * (end - corner)
-    tangent_norm = tangent / np.linalg.norm(tangent)
-
-    print(f"Calculated tangent at t={t}: [{tangent_norm[0]:.3f}, {tangent_norm[1]:.3f}, {tangent_norm[2]:.3f}]")
-
-    return tangent_norm
 
 def get_orientation(position, t, start, end, corner, max_tilt) -> np.array:
     """Get orientation quaternion that tilts toward center while maintaining gripper roll.
@@ -347,7 +330,7 @@ def generate_arch_path(robot, start, end, corner) -> tuple:
     
     return path
 
-def arch_move(robot, start=None, end=None, corner=None):
+def arch_move(robot, cam_manager=None, T_tcp_cam=None, start=None, end=None, corner=None):
     """Move the robot along an arch path defined by a Bezier curve.
     
     Args:
@@ -357,20 +340,45 @@ def arch_move(robot, start=None, end=None, corner=None):
     positions = [point for point, _ in path]
     orientations = [orn for _, orn in path]
 
-    
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    task_name = f"task_{timestamp}"
+    task_dir = os.path.join(INPUT_PATH, task_name)
+    print(f"===== Starting Capturing =====")
+    print(f"    Task Name: {task_name}")
+    print(f"    Data will be saved to: {task_dir}")
+
+    cam_manager.robot_name = "panda" 
+    # cam_manager.save_calibration()  # Not needed - we already have T_tcp_cam loaded
+    # Move the generated camera_info.npz to the task dir
+    # if os.path.exists("camera_info.npz"):
+    #     os.rename("camera_info.npz", os.path.join(task_dir, "camera_info.npz"))
 
     print("Moving to Start point of the arch...")
-    robot.move_cart_pos_abs_ptp(positions[0], orientations[0])
+    robot.move_cart_pos_abs_lin(positions[0], orientations[0])
     curr_pos, curr_orn = robot.get_tcp_pos_orn()
-    print(f"Start point reached: X={curr_pos[0]:.3f}, Y={curr_pos[1]:.3f}, Z={curr_pos[2]:.3f}, Ori={curr_orn}")
+    print(f"    Start point reached: X={curr_pos[0]:.3f}, Y={curr_pos[1]:.3f}, Z={curr_pos[2]:.3f}, Ori={curr_orn}")
 
     time.sleep(2)
 
-    print("Starting arch movement...")
-    #for idx, (point, orientation) in enumerate(path):
-        #print(f"Moving to waypoint {idx + 1}/{len(path)}: X={point[0]:.3f}, Y={point[1]:.3f}, Z={point[2]:.3f}, Ori={orientation}")
-        #robot.move_cart_pos_abs_ptp(point, orientation)
-    robot.move_cart_waypoints(positions[1:], orientations[1:])
+    print("Starting arch movement for capturing images...")
+    for idx, (position, orientation) in enumerate(zip(positions[1:], orientations[1:]), 1):
+        #print(f"    Moving to waypoint {idx + 1}/{len(path)}: X={position[0]:.3f}, Y={position[1]:.3f}, Z={position[2]:.3f}, Ori={orientation}")
+        robot.move_cart_pos_abs_lin(position, orientation)
+        time.sleep(0.2)
+        if cam_manager is not None:
+            data = cam_manager.get_images()
+            data_point = {
+                'rgb': data['rgb_gripper'],
+                'depth': data['depth_gripper'],
+                'tcp_pos': position,
+                'tcp_orn': orientation
+            }
+            
+            save_frame(data_point, idx, task_dir, cam_manager, T_tcp_cam)
+            
+            cam_manager.render()
+            
+    #robot.move_cart_waypoints(positions[1:], orientations[1:])
     print("Arch movement completed.")
 
 # DEBUG/UTILITY FUNCTIONS
@@ -384,6 +392,54 @@ def print_robot_position(robot, label: str = "Current"):
     print(f"  Z = {pos[2]:.4f} m")
     print(f"  Orientation (quaternion): [{orn[0]:.3f}, {orn[1]:.3f}, {orn[2]:.3f}, {orn[3]:.3f}]")
     return pos, orn
+
+def save_frame(data, index, task_dir, cam_manager, T_tcp_cam):
+    """
+    Saves a single frame of data using Camera Manager and Calibration.
+    """
+    # Save RGB Image
+    rgb_dir = os.path.join(task_dir, "images")
+    os.makedirs(rgb_dir, exist_ok=True)
+    
+    # RGB is usually RGB in dictionary, convert to BGR for OpenCV
+    bgr_image = data['rgb'][:, :, ::-1] 
+    cv2.imwrite(os.path.join(rgb_dir, f"{index:04d}.png"), bgr_image)
+
+    # Save Depth Image
+    depth_dir = os.path.join(task_dir, "depth_scaled")
+    os.makedirs(depth_dir, exist_ok=True)
+    np.save(os.path.join(depth_dir, f"{index:04d}.npy"), data['depth'])
+
+    # Save Poses (Calculated: World -> Camera)
+    pose_dir = os.path.join(task_dir, "poses")
+    os.makedirs(pose_dir, exist_ok=True)
+    # Get Robot Pose (Base -> TCP)
+    tcp_pos = data['tcp_pos']
+    tcp_orn = data['tcp_orn'] # [x, y, z, w]
+    
+    T_base_tcp = np.eye(4)
+    T_base_tcp[:3, 3] = tcp_pos
+    T_base_tcp[:3, :3] = Rotation.from_quat(tcp_orn).as_matrix()
+
+    # Calculate Camera Pose (Base -> Camera) using loaded calibration
+    # T_base_cam = T_base_tcp * T_tcp_cam
+    T_base_cam = T_base_tcp @ T_tcp_cam
+
+    # Get Camera Intrinsics
+    intrinsics = cam_manager.gripper_cam.get_intrinsics()
+    K = np.eye(3)
+    K[0, 0] = intrinsics['fx']
+    K[1, 1] = intrinsics['fy']
+    K[0, 2] = intrinsics['cx']
+    K[1, 2] = intrinsics['cy']
+
+    # Write to text file
+    pose_file = os.path.join(pose_dir, f"{index:04d}.txt")
+    with open(pose_file, "w") as f:
+        # Saving the CAMERA pose
+        np.savetxt(f, T_base_cam, fmt='%.6f') 
+        f.write("\n")
+        np.savetxt(f, K, fmt='%.6f')
 
 def debug_transformations(robot):
     """Debug the transformation matrices."""
@@ -421,7 +477,7 @@ def debug_transformations(robot):
 
 @hydra.main(
     config_path="/home/ceylanb/robot/robot_io/robot_io/conf",
-    config_name="replay_recorded_trajectory",
+    config_name="data_gather",
     version_base=None
 )
 def main(cfg: DictConfig):
@@ -435,6 +491,15 @@ def main(cfg: DictConfig):
         print("Initializing robot")
         robot = hydra.utils.instantiate(cfg.robot)
         print("Robot initialized successfully")
+
+        print("Initializing Camera Manager from config...")
+        cam_manager = hydra.utils.instantiate(cfg.cams)
+        print("Camera Manager initialized.")
+
+        print("Loading calibration...")
+        calibration_file = "/home/ceylanb/robot/robot_io/calibration/calibration_files/panda_realsenseD435_T_tcp_cam_2025_12_16__17_33.npy"
+        T_tcp_cam = np.load(calibration_file)
+        print("Calibration Matrix Loaded Successfully.")
 
         print("Robot positioned to neutral pose")
         recover_to_center(robot)
@@ -451,27 +516,27 @@ def main(cfg: DictConfig):
         time.sleep(1)
 
         # Parallel to y axis arch
-        arch_move(robot, CONFIG.START, CONFIG.END, CONFIG.CORNER)
+        arch_move(robot, cam_manager, T_tcp_cam, CONFIG.START, CONFIG.END, CONFIG.CORNER)
         time.sleep(1)
 
-        recover_to_center(robot)
-        time.sleep(1)
+        # recover_to_center(robot)
+        # time.sleep(1)
 
-        # Skewed reverseclockwise arch
-        arch_move(robot, CONFIG.START2, CONFIG.END2, CONFIG.CORNER)
-        time.sleep(1)
+        # # Skewed reverseclockwise arch
+        # arch_move(robot, cam_manager, CONFIG.START2, CONFIG.END2, CONFIG.CORNER)
+        # time.sleep(1)
 
-        recover_to_center(robot)
-        time.sleep(1)
-        # Skewed clockwise arch
-        arch_move(robot, CONFIG.START3, CONFIG.END3, CONFIG.CORNER)
+        # recover_to_center(robot)
+        # time.sleep(1)
+        # # Skewed clockwise arch
+        # arch_move(robot, cam_manager, CONFIG.START3, CONFIG.END3, CONFIG.CORNER)
 
-        time.sleep(1)
+        # time.sleep(1)
         # Movement sequence end
     
         #debug_transformations(robot)
 
-        #print_robot_position(robot, "Final")
+        print_robot_position(robot, "Final")
 
         print("Movement sequence completed")
 
