@@ -27,8 +27,10 @@ import cv2
 import datetime
 import numpy as np
 import hydra
+import math
 from omegaconf import DictConfig
 from scipy.spatial.transform import Rotation
+from robot_io.utils.utils import quat_to_euler, euler_to_quat
 
 DREMA_PROJECT_PATH = "/home/ceylanb/DreMa/drema_project"
 INPUT_PATH = os.path.join(DREMA_PROJECT_PATH, "input")
@@ -231,7 +233,7 @@ def generate_arch_path(robot, start, end, corner, num_waypoints, initial_orn) ->
         x_t = (1 - t)**2 * start[0] + 2 * (1 - t) * t * corner[0] + t**2 * end[0]
         y_t = (1 - t)**2 * start[1] + 2 * (1 - t) * t * corner[1] + t**2 * end[1]
         z_t = (1 - t)**2 * start[2] + 2 * (1 - t) * t * corner[2] + t**2 * end[2]
-        orientation = get_orientation(np.array([x_t, y_t, z_t]), t, start, end, corner, max_tilt)
+        orientation = get_orientation(np.array([x_t, y_t, z_t]), t, start, end, corner, max_tilt, initial_orn)
         
         #orientation = initial_orn  # Keep fixed orientation (no tilt)
         path.append(([x_t, y_t, z_t], orientation))
@@ -320,7 +322,7 @@ def arch_move(robot, cam_manager=None, T_tcp_cam=None, arch_config=None, arch_ty
     orientations = [orn for _, orn in path]
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    task_name = f"task_{timestamp}"
+    task_name = f"task_{arch_type}_{timestamp}"
     task_dir = os.path.join(INPUT_PATH, task_name)
     print(f"===== Starting Capturing =====")
     print(f"    Task Name: {task_name}")
@@ -354,6 +356,93 @@ def arch_move(robot, cam_manager=None, T_tcp_cam=None, arch_config=None, arch_ty
     #robot.move_cart_waypoints(positions[1:], orientations[1:])
     print("Arch movement completed.")
 
+def sample_pose(cfg_sampler, neutral_euler):
+    """
+    Sample a random pose.
+    Args:
+        cfg_sampler: Configuration for the pose sampler
+        neutral_euler: Neutral orientation in Euler angles
+    Returns:
+        target_pos: Sampled target position
+        target_orn: Sampled target orientation quaternion
+    """
+    # Get Limits
+    x = np.random.uniform(*cfg_sampler.x_limits)
+    y = np.random.uniform(*cfg_sampler.y_limits)
+    z = np.random.uniform(*cfg_sampler.z_limits)
+    noise_deg = cfg_sampler.max_rotation_noise_deg
+    
+    target_pos = np.array([x, y, z])
+
+    noise_rad = np.radians(noise_deg)
+    
+    # generate noises
+    r_noise = np.random.uniform(-noise_rad, noise_rad) # Roll noise
+    p_noise = np.random.uniform(-noise_rad, noise_rad) # Pitch noise
+    y_noise = np.random.uniform(-noise_rad, noise_rad) # Yaw noise
+    
+    # get base yaw
+    base_yaw = neutral_euler[2]
+
+    target_euler = np.array([math.pi + r_noise,  p_noise, base_yaw + y_noise])
+    
+    target_orn = euler_to_quat(target_euler)
+    
+    return target_pos, target_orn
+
+def random_move(robot, cam_manager, T_tcp_cam, sampler_config):
+    """
+    Moves the robot to random points using the safe sampler.
+    """
+    num_poses = sampler_config.num_poses
+    
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    task_name = f"task_random_{timestamp}"
+    task_dir = os.path.join(INPUT_PATH, task_name)
+    
+    _, neutral_orn = robot.get_tcp_pos_orn()
+    
+    print(f"===== Starting Random Sampler =====")
+    print(f"    Task Name: {task_name}")
+    print(f"    Poses to collect: {num_poses}")
+    print(f"    Box Limits: X{sampler_config.x_limits} Y{sampler_config.y_limits} Z{sampler_config.z_limits}")
+
+    success_count = 0
+    attempts = 0
+    max_attempts = num_poses * 2 
+
+    while success_count < num_poses and attempts < max_attempts:
+        attempts += 1
+        print(f"Sampling attempt {attempts} (Collected {success_count}/{num_poses})...")
+        
+        target_pos, target_orn = sample_pose(sampler_config, neutral_orn)
+        
+        try:
+            # Move Robot
+            robot.move_cart_pos_abs_ptp(target_pos, target_orn)
+            
+            time.sleep(0.5) 
+            
+            # Capture & Save
+            if cam_manager is not None:
+                data = cam_manager.get_images()
+                data_point = {
+                    'rgb': data['rgb_gripper'],
+                    'depth': data['depth_gripper'],
+                    'tcp_pos': target_pos,
+                    'tcp_orn': target_orn
+                }
+                save_frame(data_point, success_count + 1, task_dir, cam_manager, T_tcp_cam)
+                cam_manager.render()
+                
+            success_count += 1
+            
+        except Exception as e:
+            print(f"[WARNING] Pose unreachable. Skipping. Error: {e}")
+            continue
+            
+    print(f"Random sampler completed. Captured {success_count} frames.")
+
 # DEBUG/UTILITY FUNCTIONS
 def print_robot_position(robot, label: str = "Current"):
     """Print the current robot TCP position and orientation."""
@@ -380,6 +469,7 @@ def main(cfg: DictConfig):
     T_tcp_cam = None
 
     arch_config = cfg.movement
+    sampler_config = cfg.pose_sampler
     
     try:
         # Initialize robot
@@ -399,20 +489,26 @@ def main(cfg: DictConfig):
         recover_to_center(robot)
         
 
-        print("Movement sequence starting")
+        print("Data Gathering starting")
         
         print_robot_position(robot, "Initial")
         
         # Movement sequence start
         # Arch types: "parallel", "skewed_clockwise" or "skewed_counterclockwise"
-        time.sleep(1)
-        arch_move(robot, cam_manager, T_tcp_cam, arch_config, arch_type="parallel")
-        time.sleep(1)
+        # time.sleep(1)
+        # arch_move(robot, cam_manager, T_tcp_cam, arch_config, arch_type="parallel")
+        # time.sleep(1)
         # Movement sequence end
+
+        # Random pose sampling start
+        time.sleep(1)
+        random_move(robot, cam_manager, T_tcp_cam, sampler_config)
+        time.sleep(1)
+        # Random pose sampling end
 
         print_robot_position(robot, "Final")
 
-        print("Movement sequence completed")
+        print("Data Gathering completed")
 
         print("Robot positioned to neutral pose")
         recover_to_center(robot)
