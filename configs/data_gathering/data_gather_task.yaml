@@ -1,0 +1,30 @@
+defaults:
+  - robot: panda_franky_interface_policy  # Load robot from robot_io
+  - cams: camera_manager                  # Load cams from robot_io
+  - _self_                                # Load this file's settings
+
+hydra:
+  searchpath:
+    - file:///home/ceylanb/robot/robot_io/robot_io/conf
+
+output_dir: /home/ceylanb/DreMa/drema_project/input
+task_name_prefix: "task_"
+
+calibration_file: /home/ceylanb/robot/robot_io/calibration/calibration_files/panda_realsenseD435_T_tcp_cam_2025_12_16__17_33.npy
+
+movement:
+  num_waypoints: 150
+  flip_orientation: false
+  arch_parallel:
+    start_offset: [0.0, -0.4, -0.2] 
+    end_offset:   [0.0,  0.3, -0.2]
+    corner_offset: [-0.1, 0.0, 0.5]
+  arch_skewed_counterclockwise:
+    start_offset: [0.1, -0.3, -0.2]
+    end_offset:   [-0.1, 0.3, -0.2]
+    corner_offset: [-0.1, 0.0, 0.5]
+  arch_skewed_clockwise:
+    start_offset: [0.1, 0.3, -0.2]
+    end_offset:   [-0.1, -0.4, -0.2]
+    corner_offset: [-0.1, 0.0, 0.5]
+  
