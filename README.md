@@ -24,6 +24,8 @@ If you find this code useful in your research, please consider citing the paper:
 ## Installation
 git clone --recursive https://github.com/leobarcellona/drema_code.git
 
+**Note:** if you have newer versions of cuda >12 please refer to [newer setup documnetation](newer_setup.md).
+
 Install torch (1.8.1 with CUDA 11.1 is used in the paper, but you can use other versions e.g. 2.1 cuda 11.8)
 ```bash
 

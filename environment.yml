@@ -1,0 +1,53 @@
+name: drema_env
+channels:
+  - nvidia/label/cuda-11.8.0 # Prioritize CUDA 11.8 specific channel
+  - conda-forge
+  - defaults
+dependencies:
+  # Core Python
+  - python=3.10
+  - pip
+  - wheel
+
+  # CUDA Toolkit (Strict 11.8 for project compatibility)
+  - cuda-toolkit
+
+  # Compilers & Build Tools
+  # We strictly pin GCC to 11 because CUDA 11.8 does not support GCC 12/13+.
+  - gcc_linux-64=11
+  - gxx_linux-64=11
+  - make
+  - cmake
+  - binutils_linux-64
+
+  # System Compatibility (Crucial for Arch/Modern Linux)
+  # This prevents "linker" errors by providing a compatible set of base system libraries
+  # instead of trying to link against the host's newer, incompatible glibc.
+  - sysroot_linux-64=2.17
+
+  # Graphics Libraries
+  - glm  # Required for diff-surfel-rasterization
+
+  # Standard Libraries
+  - numpy=1.23  # Pinned for compatibility
+  - ninja
+
+  # Pip Dependencies
+  - pip:
+      # PyTorch (CUDA 11.8 specific)
+      - torch==2.1.1+cu118
+      - torchvision==0.16.1+cu118
+      - torchaudio==2.1.1+cu118
+      
+      # Project Requirements
+      - opencv-python
+      - open3d
+      - matplotlib
+      - object2urdf
+      - trimesh==3.10
+      - pybullet
+      - mediapy
+      - plyfile
+      - setuptools==49.4
+      - hydra-core>=1.3.2
+      - pynput
