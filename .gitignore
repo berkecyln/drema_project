@@ -173,4 +173,5 @@ cython_debug/
 outputs/
 input/
 sample_data/
+logs/
 
