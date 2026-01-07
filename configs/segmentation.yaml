@@ -1,0 +1,22 @@
+input_dir: input
+# Optional explicit task folders to process; leave empty to process all task_* in input_dir
+tasks: ["input/task_parallel_20251217_180023", "input/task_random_20251217_180141"]
+
+object_prompts: ["red cube"]
+table_prompt: "table"
+
+# Model settings
+models:
+  dino_model_id: "IDEA-Research/grounding-dino-base"
+  sam_model_id: "facebook/sam-vit-huge"
+
+# Inference settings
+box_threshold: 0.25 # higher = fewer boxes more confident
+text_threshold: 0.25 # higher = fewer text matches more confident
+device: null 
+background_id: 255  # white
+save_debug_vis: true  # Save annotated RGB images with bounding boxes and masks for debugging
+
+hydra:
+  run:
+    dir: outputs/segmentation/${now:%Y-%m-%d}/${now:%H-%M-%S}

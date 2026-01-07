@@ -63,7 +63,7 @@ task_name
   |     |---0001.png 
   |     |---0002.png
   |
-  |---object_pose (contains the intrinsics and extrinsics of the objects)
+  |---poses (contains the intrinsics and extrinsics of the objects)
   |     |---0001.txt
   |     |---0002.txt
   |
