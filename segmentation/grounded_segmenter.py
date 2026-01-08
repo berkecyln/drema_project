@@ -29,8 +29,6 @@ class GroundedSegmenter:
         text_threshold: float = 0.25,
     ):
         """
-        Initialize models for grounded segmentation.
-        
         Args:
             dino_model_id: HuggingFace model ID for GroundingDINO
             sam_model_id: HuggingFace model ID for SAM
@@ -38,7 +36,6 @@ class GroundedSegmenter:
             box_threshold: Confidence threshold for bounding box detection
             text_threshold: Confidence threshold for text-box association
         """
-        # Lazy imports to keep module import fast
         from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
         from transformers import SamModel, SamProcessor
         
@@ -66,16 +63,14 @@ class GroundedSegmenter:
         text_prompt: str
     ) -> Tuple[torch.Tensor, torch.Tensor, List[str]]:
         """
-        Detect objects in image using GroundingDINO.
-        
         Args:
             image: PIL Image
             text_prompt: Text description of objects to detect
         
         Returns:
-            boxes: Detected bounding boxes [N, 4] in xyxy format
+            boxes: Bounding boxes [N, 4] in xyxy format
             scores: Confidence scores [N]
-            labels: Detected label strings [N]
+            labels: Label strings [N]
         """
         # GroundingDINO works better when labels end with a dot
         if text_prompt and not text_prompt.strip().endswith("."):
@@ -114,7 +109,7 @@ class GroundedSegmenter:
             boxes: Bounding boxes [N, 4] in xyxy format
         
         Returns:
-            masks: Binary masks [N, H, W]
+            Binary masks [N, H, W]
         """
         if len(boxes) == 0:
             return np.zeros((0, image.size[1], image.size[0]), dtype=np.uint8)
@@ -131,18 +126,18 @@ class GroundedSegmenter:
         with torch.no_grad():
             outputs = self.sam_model(**inputs)
         
-        # Post-process masks to original image size: [num_boxes, 3, H, W]
+        # Shape: [num_boxes, 3, H, W] with 3 mask candidates per box
         masks = self.sam_processor.image_processor.post_process_masks(
             outputs.pred_masks.cpu(),
             inputs["original_sizes"].cpu(),
             inputs["reshaped_input_sizes"].cpu()
         )[0]
 
-        # Refine masks by takeing mean across 3 candidates and threshold
+        # SAM returns 3 mask candidates per box; average and threshold them
         masks = masks.float()
         masks = masks.permute(0, 2, 3, 1)  # [num_boxes, H, W, 3]
         masks = masks.mean(axis=-1)  # [num_boxes, H, W]
-        masks = (masks > 0).int()  # Binary threshold
+        masks = (masks > 0).int()
         masks = masks.numpy().astype(np.uint8)
 
         if len(masks) == 0:
@@ -158,30 +153,27 @@ class GroundedSegmenter:
         background_id: int = 255,
     ) -> Tuple[np.ndarray, Dict[int, str]]:
         """
-        Generate a combined mask image with unique IDs per object class.
-        
-        The mask assignment strategy:
-        - Background: 255
-        - Table: 50 (if detected)
-        - Objects: 1, 2, 3, ... (one ID per detected instance)
+        Mask ID assignment:
+          Background: 255
+          Table: 50
+          Objects: 1, 2, 3, ...
         
         Args:
             image: PIL Image (RGB)
-            object_prompts: List of text prompts for objects
-            table_prompt: Text prompt for table detection
-            background_id: ID to use for background pixels
+            object_prompts: Text prompts for objects
+            table_prompt: Text prompt for table
+            background_id: Background pixel value
         
         Returns:
-            mask: Combined mask [H, W] with unique IDs
-            labels: Dict mapping ID to label name
+            mask: [H, W] with unique IDs per instance
+            labels: ID -> label name mapping
         """
         h, w = image.size[1], image.size[0]
         combined_mask = np.full((h, w), background_id, dtype=np.uint8)
         labels = {background_id: "background"}
         
-        table_id = 50
-        object_start_id = 1
-        
+        TABLE_ID = 50
+        OBJECT_START_ID = 1
         # Detect and segment table
         if table_prompt:
             table_boxes, table_scores, _ = self.detect_objects(image, table_prompt)
@@ -190,11 +182,11 @@ class GroundedSegmenter:
                 best_idx = table_scores.argmax()
                 table_mask = self.segment_from_boxes(image, table_boxes[best_idx:best_idx+1])
                 if len(table_mask) > 0 and table_mask[0].sum() > 0:
-                    combined_mask[table_mask[0] > 0] = table_id
-                    labels[table_id] = "table"
+                    combined_mask[table_mask[0] > 0] = TABLE_ID
+                    labels[TABLE_ID] = "table"
         
         # Detect and segment objects
-        current_id = object_start_id
+        current_id = OBJECT_START_ID
         for prompt in object_prompts:
             boxes, scores, detected_labels = self.detect_objects(image, prompt)
             
@@ -203,24 +195,18 @@ class GroundedSegmenter:
             
             masks = self.segment_from_boxes(image, boxes)
             
-            # Count instances of each label for numbering
             label_counts = {}
             for i, (mask, label) in enumerate(zip(masks, detected_labels)):
-                # Clean up label
-                clean_label = label.strip().rstrip('.')
+                clean_label = label.strip().rstrip('.') # clean label
                 
-                # Add instance number if multiple of same type
                 if clean_label in label_counts:
                     label_counts[clean_label] += 1
                     instance_label = f"{clean_label}_{label_counts[clean_label]}"
                 else:
                     label_counts[clean_label] = 1
-                    # First instance: add _1 only if there will be more
+                    # Add _1 suffix only if more instances follow
                     remaining_same = sum(1 for l in detected_labels[i+1:] if l.strip().rstrip('.') == clean_label)
-                    if remaining_same > 0:
-                        instance_label = f"{clean_label}_1"
-                    else:
-                        instance_label = clean_label
+                    instance_label = f"{clean_label}_1" if remaining_same > 0 else clean_label
                 
                 combined_mask[mask > 0] = current_id
                 labels[current_id] = instance_label
