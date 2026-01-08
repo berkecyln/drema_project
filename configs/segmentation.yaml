@@ -1,22 +1,50 @@
-input_dir: input
-# Optional explicit task folders to process; leave empty to process all task_* in input_dir
-tasks: ["input/task_parallel_20251217_180023", "input/task_random_20251217_180141"]
+# Segmentation pipeline configuration for DreMa dataset preparation
 
-object_prompts: ["red cube"]
-table_prompt: "table"
+# Segmentation method: "grounded_sam" or "sam3"
+method: "sam3"
 
-# Model settings
-models:
+# Input/output paths
+input_dir: "input"
+# Folders to process; leave empty to process all subdirectories in input_dir
+folders: ["arch_box_sam3", "random_box_sam3"]
+output_subdir: "object_mask"
+
+# Debug visualization
+save_debug_vis: true  # Save debug visualization images
+debug_subdir: "debug_vis"  # Folder for debug images 
+
+# Grounded SAM configuration (GroundingDINO + SAM)
+grounded_sam:
+  # Text prompts for object detection
+  object_prompts:
+    - "red cube"
+  
+  table_prompt: "table"
+  
+  # Model configurations
   dino_model_id: "IDEA-Research/grounding-dino-base"
   sam_model_id: "facebook/sam-vit-huge"
+  
+  # Detection thresholds
+  box_threshold: 0.25
+  text_threshold: 0.25
 
-# Inference settings
-box_threshold: 0.25 # higher = fewer boxes more confident
-text_threshold: 0.25 # higher = fewer text matches more confident
-device: null 
-background_id: 255  # white
-save_debug_vis: true  # Save annotated RGB images with bounding boxes and masks for debugging
+# SAM 3 configuration
+sam3:
+  # Model configuration
+  model_id: "facebook/sam3"
+  
+  # Text prompts for object detection
+  object_prompts:
+    - "red cube"
+  
+  table_prompt: "table"
+  
+  # Segmentation thresholds
+  threshold: 0.5  # Instance detection
+  mask_threshold: 0.5  # Mask binarization
 
-hydra:
-  run:
-    dir: outputs/segmentation/${now:%Y-%m-%d}/${now:%H-%M-%S}
+device: null
+background_id: 255  # Background pixel value
+
+num_workers: 1  # Set > 1 for multi-process batch processing
