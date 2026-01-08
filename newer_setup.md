@@ -36,3 +36,22 @@ Newer NVIDIA GPUs (RTX 50-series) require `PyTorch >= 2.7.0`, `CUDA >= 12.8` and
    pip install submodules/diff-gaussian-rasterization-depth --no-cache-dir
    pip install submodules/diff-surfel-rasterization --no-cache-dir
    ```
+4. **SAM3 Setup**
+   
+   SAM3 is not available via PyPI currently, must be installed from GitHub and kept in project folder.
+
+   First you need to request access for SAM3 repository from https://huggingface.co/facebook/sam3 then after you have to create a login token for sam in Hugging Face.
+
+   To authenticate yourself, run and paste your token
+   ```bash
+   huggingface-cli login
+   ```
+
+   Then clone and install SAM3:
+   ```bash
+   cd /home/your_username/Projects/drema_project
+   git clone https://github.com/facebookresearch/sam3.git
+   cd sam3
+   pip install -e ".[notebooks]"
+   ```
+
