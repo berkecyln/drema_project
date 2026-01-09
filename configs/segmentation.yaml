@@ -6,7 +6,7 @@ method: "sam3"
 # Input/output paths
 input_dir: "input"
 # Folders to process; leave empty to process all subdirectories in input_dir
-folders: ["arch_box_sam3", "random_box_sam3"]
+folders: ["arch_multi_object_flipped_sam3_test"]
 output_subdir: "object_mask"
 
 # Debug visualization
@@ -18,6 +18,9 @@ grounded_sam:
   # Text prompts for object detection
   object_prompts:
     - "red cube"
+    - "blue cup"
+    - "green cup"
+    - "orange cup"
   
   table_prompt: "table"
   
@@ -37,8 +40,12 @@ sam3:
   # Text prompts for object detection
   object_prompts:
     - "red cube"
+    - "blue cup"
+    - "green cup"
+    - "orange cup"
   
-  table_prompt: "table"
+  
+  table_prompt: "surface"
   
   # Segmentation thresholds
   threshold: 0.5  # Instance detection
