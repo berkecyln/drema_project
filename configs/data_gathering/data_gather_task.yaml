@@ -10,7 +10,7 @@ hydra:
 output_dir: /home/ceylanb/DreMa/drema_project/input
 task_name_prefix: "task_"
 
-calibration_file: /home/ceylanb/robot/robot_io/calibration/calibration_files/panda_realsenseD435_T_tcp_cam_2025_12_16__17_33.npy
+calibration_file: /home/ceylanb/robot/robot_io/calibration/calibration_files/panda_realsenseD435_flipped.npy
 
 movement:
   num_waypoints: 50
