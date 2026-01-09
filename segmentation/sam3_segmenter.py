@@ -145,9 +145,11 @@ class SAM3Segmenter:
             table_masks, _, table_scores = self.segment_with_text(image, table_prompt)
             if len(table_masks) > 0:
                 # Take highest confidence table detection
-                best_idx = table_scores.argmax()
+                best_idx = np.argmax(table_scores)
+                if best_idx >= len(table_masks):
+                    best_idx = 0
                 combined_mask[table_masks[best_idx] > 0] = TABLE_ID
-                labels[TABLE_ID] = "table"
+                labels[TABLE_ID] = table_prompt
         
         # Segment objects
         for prompt in object_prompts:
