@@ -111,7 +111,9 @@ class BaseTrainer:
                     # Keep track of max radii in image-space for pruning
                     self.gaussians.max_radii2D[visibility_filter] = torch.max(self.gaussians.max_radii2D[visibility_filter],
                                                                          radii[visibility_filter])
-                    self.gaussians.add_densification_stats(viewspace_point_tensor, visibility_filter)
+                    # Skip densification if no gradients (happens with sparse data)
+                    if viewspace_point_tensor.grad is not None:
+                        self.gaussians.add_densification_stats(viewspace_point_tensor, visibility_filter)
 
                     if iteration > self.opt.densify_from_iter and iteration % self.opt.densification_interval == 0:
                         size_threshold = 20 if iteration > self.opt.opacity_reset_interval else None

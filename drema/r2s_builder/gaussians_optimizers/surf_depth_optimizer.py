@@ -1,5 +1,6 @@
 from random import randint
 import matplotlib.pyplot as plt
+import torch
 
 
 from drema.drema_scene import DremaScene
@@ -34,6 +35,13 @@ class SurfDepthTrainer(BaseTrainer):
         image, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["viewspace_points"], \
             render_pkg["visibility_filter"], render_pkg["radii"]
 
+        # Safety check: Skip iteration if no visible gaussians (happens with very sparse data)
+        if viewspace_point_tensor.shape[0] == 0 or radii.shape[0] == 0:
+            # Return dummy values to continue training
+            return torch.tensor(0.0, device="cuda", requires_grad=True), \
+                   torch.tensor(0.0, device="cuda"), \
+                   viewspace_point_tensor, visibility_filter, radii, render_pkg
+
         gt_image = self.viewpoint_cam.original_image.cuda()
         gt_depth = self.viewpoint_cam.depth.clone().cuda()
 
@@ -42,7 +50,7 @@ class SurfDepthTrainer(BaseTrainer):
 
         # regularization
         lambda_normal = self.opt.lambda_normal if iteration > 7000 else 0.0
-        lambda_dist = self.opt.lambda_dist if iteration > 3000 else 0.0 #BN: reason of huge spike at 3000 since we exclude dist loss before
+        lambda_dist = self.opt.lambda_dist if iteration > 3000 else 0.0 # Reason of huge spike at 3000 since we exclude dist loss before
 
         rend_dist = render_pkg["rend_dist"]
         rend_normal = render_pkg['rend_normal']

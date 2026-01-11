@@ -157,12 +157,18 @@ class AssetsManager:
         if extract_mesh:
             mesh = trainer.extract_mesh()
             self.filter_mesh(mesh)
-            mesh_path = os.path.join(self.assets_path, "meshes")
-            os.makedirs(mesh_path, exist_ok=True)
-            o3d.io.write_triangle_mesh(os.path.join(mesh_path, str(id) + ".obj"), mesh)
+            
+            # Check if mesh is valid before saving and building URDF
+            if len(mesh.vertices) == 0 or len(mesh.triangles) == 0:
+                print(f"WARNING: Mesh extraction for object {id} produced empty mesh. Skipping URDF generation.")
+                print(f"This is likely due to insufficient data coverage ({self.box_max - self.box_min}).")
+            else:
+                mesh_path = os.path.join(self.assets_path, "meshes")
+                os.makedirs(mesh_path, exist_ok=True)
+                o3d.io.write_triangle_mesh(os.path.join(mesh_path, str(id) + ".obj"), mesh)
 
-            if extract_urdf:
-                self.urdf_builder.build_urdf_object(mesh, str(id))
+                if extract_urdf:
+                    self.urdf_builder.build_urdf_object(mesh, str(id))
         print(f"-----Mesh Extraction Done for {id}-----") #ADDED
 
     def extract_environment(self, extract_mesh=False):
@@ -274,6 +280,10 @@ class AssetsManager:
         self.box_max = np.array([-np.inf, -np.inf, -np.inf])
         self.box_min = np.array([np.inf, np.inf, np.inf])
         self.color_filter = np.inf
+        
+        # Track object coverage for warning
+        total_object_pixels = 0
+        total_pixels = 0
 
         # new folders
         new_images_path = os.path.join(self.new_path, "images")
@@ -297,6 +307,11 @@ class AssetsManager:
         # filter data
         for k, name in enumerate(self.names):
             mask = masks_images[k]
+            
+            # Track object coverage
+            object_pixels = np.count_nonzero(mask == id)
+            total_object_pixels += object_pixels
+            total_pixels += mask.size
 
             # create a filter mask
             filter_mask = np.zeros(mask.shape, dtype=np.uint8)
@@ -330,6 +345,14 @@ class AssetsManager:
                 Image.fromarray(rgb_images[k]).save(os.path.join(new_images_path, name + ".png"))
                 np.save(os.path.join(new_depth_path, name + ".npy"), depth_images[k])
                 shutil.copy(os.path.join(self.source_path, "poses", name + ".txt"), os.path.join(new_poses_path, name + ".txt"))
+        
+        # Warn if object coverage is too low
+        avg_coverage = 100 * total_object_pixels / total_pixels
+        if avg_coverage < 10.0:
+            print(f"WARNING: Object {id} has very low coverage ({avg_coverage:.2f}% of image)")
+            print("This may lead to poor gaussian reconstruction. Regathering data is recommended.")
+
+
 
     @torch.no_grad()
     def filter_gaussians(self, gaussians):
@@ -350,10 +373,17 @@ class AssetsManager:
         labels = np.array(point_cloud.cluster_dbscan(eps=0.1, min_points=10, print_progress=True))
         label_list, counts = np.unique(labels, return_counts=True)
         counts[label_list == -1] = 0 # do not count noise points
-        main_cluster = label_list[np.argmax(counts)]
-        gaussinas_to_keep = labels == main_cluster
-        mask_cluster = np.zeros(len(labels), dtype=bool)
-        mask_cluster[gaussinas_to_keep] = True
+        
+        # Handle case when no valid clusters found (all points are noise)
+        if counts.sum() == 0 or len(label_list) == 0:
+            print(f"WARNING: No valid clusters found. Keeping all points within bounding box.")
+            # Keep all points that passed bounding box filter
+            mask_cluster = np.ones(len(labels), dtype=bool)
+        else:
+            main_cluster = label_list[np.argmax(counts)]
+            gaussinas_to_keep = labels == main_cluster
+            mask_cluster = np.zeros(len(labels), dtype=bool)
+            mask_cluster[gaussinas_to_keep] = True
 
         # filter gaussians outside the cluster
         gaussians.filter_by_mask(mask_cluster)
