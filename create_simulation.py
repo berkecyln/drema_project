@@ -37,7 +37,7 @@ def prepare_labels(path):
             elif label_name == "rightfinger":
                 label_name = "link9"
             Panda_labels[label_name] = value
-        elif label_name in ["table", "diningTable_visible"]:
+        elif label_name in ["table", "diningTable_visible", "surface"]:
             Table_labels[label_name] = value
         else:
             # check if label_name is in keys
