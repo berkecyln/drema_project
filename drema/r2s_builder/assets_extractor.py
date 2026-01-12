@@ -16,7 +16,7 @@ from drema.utils.point_cloud_utils import project_depth
 
 
 class AssetsManager:
-    def __init__(self, source_path, assets_path, optimizer, dataset, opt, pipe, gaussians_iterations, mesh_iterations, experiment_name="Exp_default"): #ADDED: experiment name
+    def __init__(self, source_path, assets_path, optimizer, dataset, opt, pipe, gaussians_iterations, mesh_iterations, experiment_name="Exp_default", filter_mesh_objects=True):
 
         self.source_path = source_path
         self.assets_path = assets_path
@@ -47,7 +47,8 @@ class AssetsManager:
         self.opt = opt
         self.pipe = pipe
 
-        self.experiment_name = experiment_name #ADDED
+        self.experiment_name = experiment_name
+        self.filter_mesh_objects = filter_mesh_objects
 
         # iterations
         self.gaussians_iterations = gaussians_iterations
@@ -156,7 +157,8 @@ class AssetsManager:
         print(f"-----Mesh Extraction for {id}-----") #ADDED
         if extract_mesh:
             mesh = trainer.extract_mesh()
-            self.filter_mesh(mesh)
+            if self.filter_mesh_objects:
+                self.filter_mesh(mesh)
             mesh_path = os.path.join(self.assets_path, "meshes")
             os.makedirs(mesh_path, exist_ok=True)
             o3d.io.write_triangle_mesh(os.path.join(mesh_path, str(id) + ".obj"), mesh)
@@ -187,7 +189,7 @@ class AssetsManager:
         print("-----Mesh Extraction Done for Environment-----") #ADDED
 
     def train_gaussians(self, extract_mesh=False):
-        trainer = self.optimizer(self.dataset, self.opt, self.pipe, self.gaussians_iterations, self.experiment_name) #ADDED: experiment name
+        trainer = self.optimizer(self.dataset, self.opt, self.pipe, self.gaussians_iterations, self.experiment_name)
         trainer.train()
 
         # get guassians to save and gaussians to mesh
@@ -257,7 +259,7 @@ class AssetsManager:
         # Get points from the original point cloud
         pcd_points = np.asarray(mesh.vertices)
 
-        # Find which points are inside the convex hull
+        # Find which points are inside the convex hull (2D projection check)
         inside_mask = self.delaunay.find_simplex(pcd_points) >= 0
 
         # Find points below the table surface

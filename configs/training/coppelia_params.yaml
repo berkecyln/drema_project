@@ -21,6 +21,7 @@ assets:
   extract_gaussians_environment: True
   extract_mesh_environment: False
   filter_objects_gaussians_environment: True
+  filter_mesh_objects: True  # Set to False to disable table-based mesh filtering
 
 
 reference_frame:
@@ -73,4 +74,4 @@ optimization:
   sdf_trunc: -1.0
   num_cluster: 50
   unbounded: False
-  mesh_res: 1024
+  mesh_res: 512  # Reduced from 1024 for better small object reconstruction
