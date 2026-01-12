@@ -470,6 +470,7 @@ def main(cfg: DictConfig):
 
     arch_config = cfg.movement
     sampler_config = cfg.pose_sampler
+    movement_type = cfg.movement_type # Configure on configs/data_gathering/data_gather_task.yaml
     
     try:
         # Initialize robot
@@ -492,20 +493,25 @@ def main(cfg: DictConfig):
         print("Data Gathering starting")
         
         print_robot_position(robot, "Initial")
+        if movement_type == "pose_sampler":
+            # Random pose sampling start
+            time.sleep(1)
+            random_move(robot, cam_manager, T_tcp_cam, sampler_config)
+            time.sleep(1)
+             # Random pose sampling end
+        if movement_type == "arch_parallel":
+            arch_type = "parallel"
+        elif movement_type == "arch_skewed_clockwise":
+            arch_type = "skewed_clockwise"
+        elif movement_type == "arch_skewed_counterclockwise":
+            arch_type = "skewed_counterclockwise"
         
         # Movement sequence start
-        # Arch types: "parallel", "skewed_clockwise" or "skewed_counterclockwise"
-        # time.sleep(1)
-        # arch_move(robot, cam_manager, T_tcp_cam, arch_config, arch_type="parallel")
-        # time.sleep(1)
+        time.sleep(1)
+        arch_move(robot, cam_manager, T_tcp_cam, arch_config, arch_type=arch_type)
+        time.sleep(1)
         # Movement sequence end
-
-        # Random pose sampling start
-        time.sleep(1)
-        random_move(robot, cam_manager, T_tcp_cam, sampler_config)
-        time.sleep(1)
-        # Random pose sampling end
-
+        
         print_robot_position(robot, "Final")
 
         print("Data Gathering completed")

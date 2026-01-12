@@ -12,20 +12,23 @@ task_name_prefix: "task_"
 
 calibration_file: /home/ceylanb/robot/robot_io/calibration/calibration_files/panda_realsenseD435_flipped.npy
 
+# "arch_parallel", "arch_skewed_clockwise", "arch_skewed_counterclockwise", "pose_sampler"
+movement_type: "arch_parallel"  
+
 movement:
-  num_waypoints: 50
+  num_waypoints: 200
   flip_orientation: false
   arch_parallel:
-    start_offset: [0.0, -0.4, -0.2] 
-    end_offset:   [0.0,  0.3, -0.2]
+    start_offset:  [0.0, -0.4, -0.1]  # X, Y, Z
+    end_offset:    [0.0,  0.3, -0.1]  
     corner_offset: [-0.1, 0.0, 0.5]
   arch_skewed_counterclockwise:
-    start_offset: [0.1, -0.3, -0.2]
-    end_offset:   [-0.1, 0.3, -0.2]
+    start_offset:  [0.1, -0.3, -0.1]  
+    end_offset:    [-0.1, 0.3, -0.1]  
     corner_offset: [-0.1, 0.0, 0.5]
   arch_skewed_clockwise:
-    start_offset: [0.1, 0.3, -0.2]
-    end_offset:   [-0.1, -0.4, -0.2]
+    start_offset:  [0.1, 0.3, -0.1]   
+    end_offset:    [-0.1, -0.4, -0.1] 
     corner_offset: [-0.1, 0.0, 0.5]
 
 pose_sampler:
