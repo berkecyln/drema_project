@@ -10,7 +10,7 @@ hydra:
 output_dir: /home/ceylanb/DreMa/drema_project/input
 task_name_prefix: "task_"
 
-calibration_file: /home/ceylanb/robot/robot_io/calibration/calibration_files/panda_realsenseD435_flipped.npy
+calibration_file: /home/ceylanb/robot/robot_io/calibration/calibration_files/panda_realsenseD435_calibration_new.npy
 
 # "arch_parallel", "arch_skewed_clockwise", "arch_skewed_counterclockwise", "pose_sampler"
 movement_type: "arch_parallel"  
@@ -21,16 +21,15 @@ movement:
   arch_parallel:
     start_offset:  [0.0, -0.4, -0.1]  # X, Y, Z
     end_offset:    [0.0,  0.3, -0.1]  
-    corner_offset: [-0.1, 0.0, 0.5]
+    corner_offset: [-0.1, 0.0, 0.4]
   arch_skewed_counterclockwise:
     start_offset:  [0.1, -0.3, -0.1]  
     end_offset:    [-0.1, 0.3, -0.1]  
-    corner_offset: [-0.1, 0.0, 0.5]
+    corner_offset: [-0.1, 0.0, 0.4]
   arch_skewed_clockwise:
     start_offset:  [0.1, 0.3, -0.1]   
     end_offset:    [-0.1, -0.4, -0.1] 
-    corner_offset: [-0.1, 0.0, 0.5]
-
+    corner_offset: [-0.1, 0.0, 0.4]
 pose_sampler:
     num_poses: 50
     # box limits

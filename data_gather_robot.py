@@ -252,7 +252,7 @@ def save_frame(data, index, task_dir, cam_manager, T_tcp_cam):
     os.makedirs(rgb_dir, exist_ok=True)
     
     # RGB is usually RGB in dictionary, convert to BGR for OpenCV
-    bgr_image = data['rgb'][:, :, ::-1] 
+    bgr_image = data['rgb'][:, :, ::-1]
     cv2.imwrite(os.path.join(rgb_dir, f"{index:04d}.png"), bgr_image)
 
     # Save Depth Image
@@ -260,7 +260,7 @@ def save_frame(data, index, task_dir, cam_manager, T_tcp_cam):
     os.makedirs(depth_dir, exist_ok=True)
     np.save(os.path.join(depth_dir, f"{index:04d}.npy"), data['depth'])
 
-    # Save Poses (Calculated: World -> Camera)
+    # Save Poses (Camera -> World, i.e., C2W format expected by DreMa)
     pose_dir = os.path.join(task_dir, "poses")
     os.makedirs(pose_dir, exist_ok=True)
     # Get Robot Pose (Base -> TCP)
@@ -273,9 +273,10 @@ def save_frame(data, index, task_dir, cam_manager, T_tcp_cam):
 
     # Calculate Camera Pose (Base -> Camera) using loaded calibration
     # T_base_cam = T_base_tcp * T_tcp_cam
+    # This gives Camera-to-World (C2W) transform - camera position/orientation in robot base frame
     T_base_cam = T_base_tcp @ T_tcp_cam
 
-    # Get Camera Intrinsics
+    # Get Camera Intrinsics (positive focal lengths - standard OpenCV convention)
     intrinsics = cam_manager.gripper_cam.get_intrinsics()
     K = np.eye(3)
     K[0, 0] = intrinsics['fx']
@@ -286,7 +287,7 @@ def save_frame(data, index, task_dir, cam_manager, T_tcp_cam):
     # Write to text file
     pose_file = os.path.join(pose_dir, f"{index:04d}.txt")
     with open(pose_file, "w") as f:
-        # Saving the CAMERA pose
+        # Save C2W pose (camera pose in world coordinates) - DreMa expects this format
         np.savetxt(f, T_base_cam, fmt='%.6f') 
         f.write("\n")
         np.savetxt(f, K, fmt='%.6f')
@@ -339,7 +340,7 @@ def arch_move(robot, cam_manager=None, T_tcp_cam=None, arch_config=None, arch_ty
     for idx, (position, orientation) in enumerate(zip(positions[1:], orientations[1:]), 1):
         #print(f"    Moving to waypoint {idx + 1}/{len(path)}: X={position[0]:.3f}, Y={position[1]:.3f}, Z={position[2]:.3f}, Ori={orientation}")
         robot.move_cart_pos_abs_lin(position, orientation)
-        time.sleep(0.2)
+        time.sleep(0.5)
         if cam_manager is not None:
             data = cam_manager.get_images()
             data_point = {

@@ -263,7 +263,14 @@ class AssetsManager:
         inside_mask = self.delaunay.find_simplex(pcd_points) >= 0
 
         # Find points below the table surface
-        below_table_mask = pcd_points[:, 2] < np.max(self.hull_points[:, 2])
+        # Temprorary solution:
+        #   Use MINIMUM Z of hull points (bottom of table mesh) as filter threshold
+        #   Objects sitting ON the table should have Z >= table_min_z
+        #   Using table min instead of max/center avoids filtering out objects
+        #   that appear slightly below table center due to depth noise
+        table_min_z = np.min(self.hull_points[:, 2])
+        below_table_mask = pcd_points[:, 2] < table_min_z
+        #below_table_mask = pcd_points[:, 2] < np.max(self.hull_points[:, 2])
 
         mesh.remove_vertices_by_mask(inside_mask | below_table_mask)
 

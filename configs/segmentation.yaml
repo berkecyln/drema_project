@@ -6,7 +6,7 @@ method: "sam3"
 # Input/output paths
 input_dir: "input"
 # Folders to process; leave empty to process all subdirectories in input_dir
-folders: ["arch_multi_object_flipped_sam3_test"]
+folders: ["task_parallel_20260113_180149"]
 output_subdir: "object_mask"
 
 # Debug visualization
