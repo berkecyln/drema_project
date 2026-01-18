@@ -1,6 +1,7 @@
 data:
   source_path: "/home/ceylanb/DreMa/drema_project/input/task_parallel_20260113_180149"
   # source_path: "/home/ceylanb/DreMa/drema_project/input/sample_data/slide_block_to_color_target_episode0_start"
+  # source_path: "/home/gunnleif/Projects/drema_project/input/sample_data/put_groceries_in_cupboard_episode1_start"
   assets_directory: "output"
   assets_path: "${data.source_path}/${data.assets_directory}"
   trajectory_file: "${data.source_path}/dictionary.pkl"
@@ -8,4 +9,3 @@ data:
 defaults:
   - simulation: coppelia_simulation
   - training: coppelia_params
-
