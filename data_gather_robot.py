@@ -256,9 +256,14 @@ def save_frame(data, index, task_dir, cam_manager, T_tcp_cam):
     cv2.imwrite(os.path.join(rgb_dir, f"{index:04d}.png"), bgr_image)
 
     # Save Depth Image
-    depth_dir = os.path.join(task_dir, "depth_scaled")
+    depth_scaled_dir = os.path.join(task_dir, "depth_scaled")
+    depth_dir = os.path.join(task_dir, "depth")
+    os.makedirs(depth_scaled_dir, exist_ok=True)
     os.makedirs(depth_dir, exist_ok=True)
+    
     np.save(os.path.join(depth_dir, f"{index:04d}.npy"), data['depth'])
+    depth_mm = data['depth'] * 10  # scale with 10
+    np.save(os.path.join(depth_scaled_dir, f"{index:04d}.npy"), depth_mm)
 
     # Save Poses (Camera -> World, i.e., C2W format expected by DreMa)
     pose_dir = os.path.join(task_dir, "poses")
@@ -342,12 +347,16 @@ def arch_move(robot, cam_manager=None, T_tcp_cam=None, arch_config=None, arch_ty
         robot.move_cart_pos_abs_lin(position, orientation)
         time.sleep(0.5)
         if cam_manager is not None:
+            # Match calibration approach: use actual robot pose after movement (in NE frame)
+            # Calibration does: robot.get_tcp_pose() which returns NE frame
+            actual_tcp_pos, actual_tcp_orn = robot.get_tcp_pos_orn()
+            
             data = cam_manager.get_images()
             data_point = {
                 'rgb': data['rgb_gripper'],
                 'depth': data['depth_gripper'],
-                'tcp_pos': position,
-                'tcp_orn': orientation
+                'tcp_pos': actual_tcp_pos,
+                'tcp_orn': actual_tcp_orn
             }
             
             save_frame(data_point, idx, task_dir, cam_manager, T_tcp_cam)
@@ -426,12 +435,15 @@ def random_move(robot, cam_manager, T_tcp_cam, sampler_config):
             
             # Capture & Save
             if cam_manager is not None:
+                # Match calibration approach: use actual robot pose after movement (in NE frame)
+                actual_tcp_pos, actual_tcp_orn = robot.get_tcp_pos_orn()
+                
                 data = cam_manager.get_images()
                 data_point = {
                     'rgb': data['rgb_gripper'],
                     'depth': data['depth_gripper'],
-                    'tcp_pos': target_pos,
-                    'tcp_orn': target_orn
+                    'tcp_pos': actual_tcp_pos,
+                    'tcp_orn': actual_tcp_orn
                 }
                 save_frame(data_point, success_count + 1, task_dir, cam_manager, T_tcp_cam)
                 cam_manager.render()

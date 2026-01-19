@@ -2,7 +2,7 @@ preparation:
   rgb_folder: "images"
   depth_folder: "depth"
   depth_format: "np" # "np" or "png"
-  depth_scale: 1
+  depth_scale: 10
   depth_compressed: True
   label_file: "labels.txt"
   merge_labels: True
@@ -11,7 +11,7 @@ preparation:
 
 assets:
   use_original_guassians: False
-  use_depth: False
+  use_depth: True
   gaussians_iterations: 7_000
   extract_gaussians_objects: True
   extract_table: True
@@ -21,6 +21,7 @@ assets:
   extract_gaussians_environment: True
   extract_mesh_environment: False
   filter_objects_gaussians_environment: True
+  filter_mesh_objects: True  # Set to False to disable table-based mesh filtering
 
 
 reference_frame:
@@ -65,7 +66,7 @@ optimization:
   opacity_reset_interval: 3000
   densify_from_iter: 500
   densify_until_iter: 15_000
-  densify_grad_threshold: 0.0002
+  densify_grad_threshold: 0.0002  # Lowered for small objects (was 0.0002)
   random_background: False
   
   voxel_size: -1.0

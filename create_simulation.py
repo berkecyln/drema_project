@@ -56,7 +56,7 @@ def prepare_labels(path):
 
 
 
-@hydra.main(version_base=None, config_path="configs", config_name="config")
+@hydra.main(version_base=None, config_path="configs", config_name="config_real")
 def main(cfg: DictConfig) -> None:
     print("Building the simulation")
 

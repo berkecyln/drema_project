@@ -32,7 +32,7 @@ output:
 
 trajectory:
   offset: [0, 0, 0]
-  load_trajectory: True
+  load_trajectory: False # True if using recorded trajectory
   remove_initial_part_trajectory: True
   remove_initial_part_trajectory_steps: 30
   execute_trajectory: False
@@ -43,7 +43,7 @@ trajectory:
   update_wrist_camera: True
 
 robot:
-  simulate_robot: True
+  simulate_robot: False # True if using simulated robot
   robot_urdf: "./assets/franka_panda/panda.urdf"
   robot_gaussians_dir: "./assets/robot_surf_gaussians"
   connected_joints: [-1, 0, 1, 2, 3, 4, 5, 6, 7, 9, 8]
@@ -59,7 +59,7 @@ robot:
 
 generation:
   generated_data_path: "./data/generated_data"
-  generate_data: True
+  generate_data: False # True if load_trajectory is True
   scale: 4
   save_images: True
   rotate_environment: True

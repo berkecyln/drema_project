@@ -10,7 +10,7 @@ hydra:
 output_dir: /home/ceylanb/DreMa/drema_project/input
 task_name_prefix: "task_"
 
-calibration_file: /home/ceylanb/robot/robot_io/calibration/calibration_files/panda_realsenseD435_calibration_new.npy
+calibration_file: /home/ceylanb/robot/robot_io/calibration/calibration_files/panda_realsenseD435_T_tcp_cam.npy
 
 # "arch_parallel", "arch_skewed_clockwise", "arch_skewed_counterclockwise", "pose_sampler"
 movement_type: "arch_parallel"  

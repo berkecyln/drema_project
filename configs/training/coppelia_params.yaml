@@ -74,4 +74,4 @@ optimization:
   sdf_trunc: -1.0
   num_cluster: 50
   unbounded: False
-  mesh_res: 512  # Reduced from 1024 for better small object reconstruction
+  mesh_res: 1024  # Reduced from 1024 for better small object reconstruction

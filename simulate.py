@@ -12,7 +12,7 @@ import drema.utils.keylistner_utils as key_listener
 
 # use hydra for configuration
 @torch.no_grad()
-@hydra.main(version_base=None, config_path="configs", config_name="config")
+@hydra.main(version_base=None, config_path="configs", config_name="config_real")
 def main(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
 
