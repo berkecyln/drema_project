@@ -345,7 +345,7 @@ def arch_move(robot, cam_manager=None, T_tcp_cam=None, arch_config=None, arch_ty
     for idx, (position, orientation) in enumerate(zip(positions[1:], orientations[1:]), 1):
         #print(f"    Moving to waypoint {idx + 1}/{len(path)}: X={position[0]:.3f}, Y={position[1]:.3f}, Z={position[2]:.3f}, Ori={orientation}")
         robot.move_cart_pos_abs_lin(position, orientation)
-        time.sleep(0.5)
+        time.sleep(1.5)
         if cam_manager is not None:
             # Match calibration approach: use actual robot pose after movement (in NE frame)
             # Calibration does: robot.get_tcp_pose() which returns NE frame
