@@ -176,6 +176,6 @@ sample_data/
 logs/
 vahcd_log.txt
 sam3/
-#robot_io/
+robot_io/
 run_renderer.sh
 
