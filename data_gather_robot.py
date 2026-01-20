@@ -400,6 +400,56 @@ def sample_pose(cfg_sampler, neutral_euler):
     
     return target_pos, target_orn
 
+    print(f"Line scan completed. Saved to {task_dir}")
+
+def line_scan_move(robot, cam_manager, T_tcp_cam, scan_config):
+    """
+    Move in a straight line for cleaner data verification.
+    """
+    # Get parameters from config
+    start_pos = np.array(scan_config.start_point)
+    end_pos = np.array(scan_config.end_point)
+    num_steps = scan_config.num_waypoints
+    
+    # Neutral orientation
+    _, neutral_orn = robot.get_tcp_pos_orn()
+    
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    task_name = f"task_line_scan_{timestamp}"
+    task_dir = os.path.join(INPUT_PATH, task_name)
+    
+    print(f"===== Starting Line Scan =====")
+    print(f"    Task Name: {task_name}")
+    print(f"    Start: {start_pos}")
+    print(f"    End:   {end_pos}")
+    
+    print("Moving to Start...")
+    robot.move_cart_pos_abs_lin(start_pos, neutral_orn)
+    time.sleep(2.0)
+    
+    print("Starting Scan...")
+    for i in range(num_steps):
+        # Linear Interpolation (Lerp)
+        t = i / (num_steps - 1)
+        target_pos = (1 - t) * start_pos + t * end_pos
+        
+        robot.move_cart_pos_abs_lin(target_pos, neutral_orn)
+        time.sleep(1.5) # Generous wait for settling
+        
+        if cam_manager:
+            actual_pos, actual_orn = robot.get_tcp_pos_orn()
+            data = cam_manager.get_images()
+            data_point = {
+                'rgb': data['rgb_gripper'],
+                'depth': data['depth_gripper'],
+                'tcp_pos': actual_pos,
+                'tcp_orn': actual_tcp_orn
+            }
+            save_frame(data_point, i+1, task_dir, cam_manager, T_tcp_cam)
+            cam_manager.render()
+            
+    print(f"Line scan completed. Saved to {task_dir}")
+
 def random_move(robot, cam_manager, T_tcp_cam, sampler_config):
     """
     Moves the robot to random points using the safe sampler.
@@ -483,6 +533,7 @@ def main(cfg: DictConfig):
 
     arch_config = cfg.movement
     sampler_config = cfg.pose_sampler
+    line_scan_config = cfg.line_scan
     movement_type = cfg.movement_type # Configure on configs/data_gathering/data_gather_task.yaml
     
     try:
@@ -512,18 +563,33 @@ def main(cfg: DictConfig):
             random_move(robot, cam_manager, T_tcp_cam, sampler_config)
             time.sleep(1)
              # Random pose sampling end
+        elif movement_type == "line_scan":
+            # Line scan start
+            time.sleep(1)
+            line_scan_move(robot, cam_manager, T_tcp_cam, line_scan_config)
+            time.sleep(1)
+            # Line scan end
         if movement_type == "arch_parallel":
             arch_type = "parallel"
+            # Movement sequence start
+            time.sleep(1)
+            arch_move(robot, cam_manager, T_tcp_cam, arch_config, arch_type=arch_type)
+            time.sleep(1)
+            # Movement sequence end
         elif movement_type == "arch_skewed_clockwise":
             arch_type = "skewed_clockwise"
+            # Movement sequence start
+            time.sleep(1)
+            arch_move(robot, cam_manager, T_tcp_cam, arch_config, arch_type=arch_type)
+            time.sleep(1)
+            # Movement sequence end
         elif movement_type == "arch_skewed_counterclockwise":
             arch_type = "skewed_counterclockwise"
-        
-        # Movement sequence start
-        time.sleep(1)
-        arch_move(robot, cam_manager, T_tcp_cam, arch_config, arch_type=arch_type)
-        time.sleep(1)
-        # Movement sequence end
+            # Movement sequence start
+            time.sleep(1)
+            arch_move(robot, cam_manager, T_tcp_cam, arch_config, arch_type=arch_type)
+            time.sleep(1)
+            # Movement sequence end
         
         print_robot_position(robot, "Final")
 
