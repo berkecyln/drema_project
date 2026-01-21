@@ -154,15 +154,16 @@ class SAM3Segmenter:
         # Segment objects
         for prompt in object_prompts:
             obj_masks, _, obj_scores = self.segment_with_text(image, prompt)
-            
             if len(obj_masks) == 0:
                 continue
-            
             sorted_indices = obj_scores.argsort()[::-1]
             label_counts = {}
             clean_label = prompt.strip()
             # Naming logic
-            for idx in sorted_indices:
+            for mask_idx, idx in enumerate(sorted_indices):
+                if idx >= len(obj_masks):
+                    print(f"[Warning] Not enough masks returned for prompt '{prompt}'. Skipping idx {idx}.")
+                    continue
                 if clean_label in label_counts:
                     label_counts[clean_label] += 1
                     instance_label = f"{clean_label}_{label_counts[clean_label]}"
@@ -171,7 +172,6 @@ class SAM3Segmenter:
                     # Add _1 suffix only if more instances follow
                     remaining_same = len(sorted_indices) - list(sorted_indices).index(idx) - 1
                     instance_label = f"{clean_label}_1" if remaining_same > 0 else clean_label
-                
                 combined_mask[obj_masks[idx] > 0] = current_id
                 labels[current_id] = instance_label
                 current_id += 1

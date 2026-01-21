@@ -66,7 +66,7 @@ optimization:
   opacity_reset_interval: 3000
   densify_from_iter: 500
   densify_until_iter: 15_000
-  densify_grad_threshold: 0.0002  # Lowered for small objects (was 0.0002)
+  densify_grad_threshold: 0.0002
   random_background: False
   
   voxel_size: -1.0

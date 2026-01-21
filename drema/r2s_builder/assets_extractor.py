@@ -259,8 +259,11 @@ class AssetsManager:
         # Get points from the original point cloud
         pcd_points = np.asarray(mesh.vertices)
 
-        # Find which points are inside the convex hull (2D projection check)
-        # inside_mask = self.delaunay.find_simplex(pcd_points) >= 0
+        # Find which points are inside the convex hull
+        inside_mask = self.delaunay.find_simplex(pcd_points) >= 0
+
+        # Find points below the table surface
+        below_table_mask = pcd_points[:, 2] < np.max(self.hull_points[:, 2])
 
         # Find points below the table surface
         # Temprorary solution:
@@ -272,30 +275,26 @@ class AssetsManager:
         # below_table_mask = pcd_points[:, 2] < table_min_z
         # below_table_mask = pcd_points[:, 2] < np.max(self.hull_points[:, 2])
 
-        # Find which points are inside the convex hull (3D check)
-        # This removes points that are physically inside the table volume
-        inside_mask = self.delaunay.find_simplex(pcd_points) >= 0
-
-        # ROBUST FILTERING: Use Plane Equation to find points below table
+        # Different Approach: Use Plane Equation to find points below table
         # table_normal is [A, B, C, D] from segment_plane equation: Ax + By + Cz + D = 0
-        a, b, c, d = self.table_normal
+        # a, b, c, d = self.table_normal
         
-        # Calculate signed distance to plane
-        distances = (a * pcd_points[:, 0] + 
-                     b * pcd_points[:, 1] + 
-                     c * pcd_points[:, 2] + d)
+        # # Calculate signed distance to plane
+        # distances = (a * pcd_points[:, 0] + 
+        #              b * pcd_points[:, 1] + 
+        #              c * pcd_points[:, 2] + d)
 
-        # Check normal direction (we assume table is horizontal-ish)
-        # If C > 0, normal points +Z (Up). Below table is distance < 0.
-        # If C < 0, normal points -Z (Down). Below table is distance > 0.
+        # # Check normal direction (we assume table is horizontal-ish)
+        # # If C > 0, normal points +Z (Up). Below table is distance < 0.
+        # # If C < 0, normal points -Z (Down). Below table is distance > 0.
         
-        # We add a small tolerance to clip noisy bottoms that dip just below the mathematical plane
-        tolerance = 0.002 # 2mm
+        # # We add a small tolerance to clip noisy bottoms that dip just below the mathematical plane
+        # tolerance = 0.002 # 2mm
         
-        if c > 0:
-            below_table_mask = distances < -tolerance
-        else:
-            below_table_mask = distances > tolerance
+        # if c > 0:
+        #     below_table_mask = distances < -tolerance
+        # else:
+        #     below_table_mask = distances > tolerance
 
         # Remove points that are inside the table volume OR below the table plane
         mesh.remove_vertices_by_mask(inside_mask | below_table_mask)

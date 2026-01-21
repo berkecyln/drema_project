@@ -256,14 +256,14 @@ def save_frame(data, index, task_dir, cam_manager, T_tcp_cam):
     cv2.imwrite(os.path.join(rgb_dir, f"{index:04d}.png"), bgr_image)
 
     # Save Depth Image
-    depth_scaled_dir = os.path.join(task_dir, "depth_scaled")
-    depth_dir = os.path.join(task_dir, "depth")
+    depth_scaled_dir = os.path.join(task_dir, "depth_scaled_10x")
+    depth_dir = os.path.join(task_dir, "depth_scaled")
     os.makedirs(depth_scaled_dir, exist_ok=True)
     os.makedirs(depth_dir, exist_ok=True)
     
     np.save(os.path.join(depth_dir, f"{index:04d}.npy"), data['depth'])
-    depth_mm = data['depth'] * 10  # scale with 10
-    np.save(os.path.join(depth_scaled_dir, f"{index:04d}.npy"), depth_mm)
+    depth_10x = data['depth'] * 10  # scale with 10
+    np.save(os.path.join(depth_scaled_dir, f"{index:04d}.npy"), depth_10x)
 
     # Save Poses (Camera -> World, i.e., C2W format expected by DreMa)
     pose_dir = os.path.join(task_dir, "poses")
@@ -345,7 +345,7 @@ def arch_move(robot, cam_manager=None, T_tcp_cam=None, arch_config=None, arch_ty
     for idx, (position, orientation) in enumerate(zip(positions[1:], orientations[1:]), 1):
         #print(f"    Moving to waypoint {idx + 1}/{len(path)}: X={position[0]:.3f}, Y={position[1]:.3f}, Z={position[2]:.3f}, Ori={orientation}")
         robot.move_cart_pos_abs_lin(position, orientation)
-        time.sleep(1.5)
+        time.sleep(1)
         if cam_manager is not None:
             # Match calibration approach: use actual robot pose after movement (in NE frame)
             # Calibration does: robot.get_tcp_pose() which returns NE frame
@@ -400,9 +400,7 @@ def sample_pose(cfg_sampler, neutral_euler):
     
     return target_pos, target_orn
 
-    print(f"Line scan completed. Saved to {task_dir}")
-
-def line_scan_move(robot, cam_manager, T_tcp_cam, scan_config):
+def line_scan_move(robot, cam_manager, T_tcp_cam, scan_config, rot_deg:int = None):
     """
     Move in a straight line for cleaner data verification.
     """
@@ -413,7 +411,15 @@ def line_scan_move(robot, cam_manager, T_tcp_cam, scan_config):
     
     # Neutral orientation
     _, neutral_orn = robot.get_tcp_pos_orn()
-    
+    if rot_deg is not None:
+        neutral_rot = Rotation.from_quat(neutral_orn)
+        rot_z = Rotation.from_euler('z', rot_deg, degrees=True)
+        rotated_orn = (neutral_rot * rot_z).as_quat()
+        orientation = rotated_orn
+    else:
+        orientation = neutral_orn
+        
+        
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     task_name = f"task_line_scan_{timestamp}"
     task_dir = os.path.join(INPUT_PATH, task_name)
@@ -424,7 +430,7 @@ def line_scan_move(robot, cam_manager, T_tcp_cam, scan_config):
     print(f"    End:   {end_pos}")
     
     print("Moving to Start...")
-    robot.move_cart_pos_abs_lin(start_pos, neutral_orn)
+    robot.move_cart_pos_abs_lin(start_pos, orientation)
     time.sleep(2.0)
     
     print("Starting Scan...")
@@ -433,16 +439,16 @@ def line_scan_move(robot, cam_manager, T_tcp_cam, scan_config):
         t = i / (num_steps - 1)
         target_pos = (1 - t) * start_pos + t * end_pos
         
-        robot.move_cart_pos_abs_lin(target_pos, neutral_orn)
-        time.sleep(1.5) # Generous wait for settling
+        robot.move_cart_pos_abs_lin(target_pos, orientation)
+        time.sleep(1)
         
         if cam_manager:
-            actual_pos, actual_orn = robot.get_tcp_pos_orn()
+            actual_tcp_pos, actual_tcp_orn = robot.get_tcp_pos_orn()
             data = cam_manager.get_images()
             data_point = {
                 'rgb': data['rgb_gripper'],
                 'depth': data['depth_gripper'],
-                'tcp_pos': actual_pos,
+                'tcp_pos': actual_tcp_pos,
                 'tcp_orn': actual_tcp_orn
             }
             save_frame(data_point, i+1, task_dir, cam_manager, T_tcp_cam)
@@ -566,8 +572,7 @@ def main(cfg: DictConfig):
         elif movement_type == "line_scan":
             # Line scan start
             time.sleep(1)
-            line_scan_move(robot, cam_manager, T_tcp_cam, line_scan_config)
-            time.sleep(1)
+            line_scan_move(robot, cam_manager, T_tcp_cam, line_scan_config, rot_deg=180)
             # Line scan end
         if movement_type == "arch_parallel":
             arch_type = "parallel"

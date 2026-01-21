@@ -9,10 +9,10 @@ from tqdm import tqdm
 Aggregate RGB-D frames into a single World-Frame Point Cloud.
 
 Basic run:
-python pointcloud_aggregation.py --input /home/gunnleif/Projects/drema_project/input/task_parallel_20260119_173115 --voxel 0.0 --no_outliers
+    python drema/utils/pointcloud_aggregation.py --input input/task_parallel_20260119_173115 --voxel 0.0 --no_outliers
 
-Postproecessed run (outlier removel and voxel downsampling):
-python pointcloud_aggregation.py --input /home/gunnleif/Projects/drema_project/input/task_parallel_20260119_173115
+Postprocessed run (outlier removel and voxel downsampling):
+    python drema/utils/pointcloud_aggregation.py --input input/task_parallel_20260119_173115
 """
 
 def read_pose_file(path, separator=" "):

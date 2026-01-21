@@ -13,29 +13,29 @@ task_name_prefix: "task_"
 calibration_file: /home/ceylanb/robot/robot_io/calibration/calibration_files/panda_realsenseD435_T_tcp_cam.npy
 
 # "arch_parallel", "arch_skewed_clockwise", "arch_skewed_counterclockwise", "pose_sampler", "line_scan"
-movement_type: "line_scan"  
-
+movement_type: "line_scan"
 line_scan:
-  num_waypoints: 100
-  start_point: [0.35, -0.40, 0.55] # X, Y, Z
-  end_point:   [0.35,  0.30, 0.55] # X, Y, Z
+  num_waypoints: 50
+  start_point: [0.40, -0.15, 0.60] # X, Y, Z
+  end_point:   [0.40,  0.15, 0.60] # X, Y, Z
 
 
 movement:
-  num_waypoints: 200
+  num_waypoints: 100
   flip_orientation: false
   arch_parallel:
     start_offset:  [0.0, -0.4, -0.1]  # X, Y, Z
     end_offset:    [0.0,  0.3, -0.1]  
-    corner_offset: [-0.1, 0.0, 0.4]
+    corner_offset: [-0.1, 0.0, 0.45]
   arch_skewed_counterclockwise:
     start_offset:  [0.1, -0.3, -0.1]  
     end_offset:    [-0.1, 0.3, -0.1]  
-    corner_offset: [-0.1, 0.0, 0.4]
+    corner_offset: [-0.1, 0.0, 0.45]
   arch_skewed_clockwise:
     start_offset:  [0.1, 0.3, -0.1]   
     end_offset:    [-0.1, -0.4, -0.1] 
-    corner_offset: [-0.1, 0.0, 0.4]
+    corner_offset: [-0.1, 0.0, 0.45]
+
 pose_sampler:
     num_poses: 50
     # box limits

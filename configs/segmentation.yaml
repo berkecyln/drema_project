@@ -6,7 +6,7 @@ method: "sam3"
 # Input/output paths
 input_dir: "input"
 # Folders to process; leave empty to process all subdirectories in input_dir
-folders: ["task_parallel_20260119_173115"]
+folders: ["merged_20260121_174454"]
 output_subdir: "object_mask"
 
 # Debug visualization
@@ -18,9 +18,9 @@ grounded_sam:
   # Text prompts for object detection
   object_prompts:
     - "red cube"
-    - "blue cup"
     - "green cup"
     - "orange cup"
+    - "yellow lego"
   
   table_prompt: "table"
   
@@ -40,9 +40,9 @@ sam3:
   # Text prompts for object detection
   object_prompts:
     - "red cube"
-    - "blue cup"
     - "green cup"
     - "orange cup"
+    - "yellow lego"
   
   
   table_prompt: "surface"
