@@ -1,6 +1,7 @@
 defaults:
   - robot: panda_franky_interface_policy 
   - cams: camera_manager
+  - centered_sampler: centered_sampler.yaml
   - _self_
 
 hydra:
@@ -31,7 +32,8 @@ movement:
     end_offset:    [-0.1, -0.4, -0.1] 
     corner_offset: [-0.1, 0.0, 0.45]
   random_pose:
-    # box limits
+    centered: true
+    # env limits
     z_limits: [0.55, 0.65]      # Z: 55cm to 65cm
     x_limits: [0.30, 0.40]      # X: 30cm to 40cm forward
     y_limits: [-0.40, 0.30]     # Y: -40cm to +30cm

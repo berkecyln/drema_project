@@ -236,7 +236,7 @@ def generate_arch_path(robot, start, end, corner, num_waypoints, initial_orn) ->
         path.append(([x_t, y_t, z_t], orientation))
     
     print("Arch path generation completed.")
-    for p in path: print(f"Pos: {np.round(p[0], 3)}, Ori: {p[1]}")
+    #for p in path: print(f"Pos: {np.round(p[0], 3)}, Ori: {p[1]}")
     
     return path
 
@@ -344,8 +344,6 @@ def arch_move(robot, cam_manager=None, T_tcp_cam=None, arch_config=None, arch_ty
         robot.move_cart_pos_abs_lin(position, orientation)
         time.sleep(1)
         if cam_manager is not None:
-            # Match calibration approach: use actual robot pose after movement (in NE frame)
-            # Calibration does: robot.get_tcp_pose() which returns NE frame
             actual_tcp_pos, actual_tcp_orn = robot.get_tcp_pos_orn()
             
             data = cam_manager.get_images()
@@ -395,6 +393,31 @@ def sample_pose(cfg_sampler, neutral_euler):
     
     target_orn = euler_to_quat(target_euler)
     
+    return target_pos, target_orn
+
+def object_centered_sample_pose(centered_sampler_config):
+    """
+    Sample a random pose for centered object
+    Returns:
+        target_pos: Position (x,y,z)
+        target_orn: Orientation quaternion (x,y,z,w)
+    """
+    theta = np.random.uniform(*centered_sampler_config.theta_limits)
+    vec = np.array([np.cos(theta), np.sin(theta), 0])
+    vec = vec * np.random.uniform(*centered_sampler_config.r_limits)
+    trans = np.cross(np.array([0, 0, 1]), vec)
+    trans = trans * np.random.uniform(*centered_sampler_config.trans_limits)
+    height = np.array([0, 0, 1]) * np.random.uniform(*centered_sampler_config.h_limits)
+    trans_final = centered_sampler_config.initial_pos + vec + trans + height
+
+    yaw = np.random.uniform(*centered_sampler_config.yaw_limits)
+    pitch = np.random.uniform(*centered_sampler_config.pitch_limit)
+    roll = np.random.uniform(*centered_sampler_config.roll_limit)
+
+    target_pos = np.array(trans_final)
+    target_orn = np.array([math.pi + pitch, roll, yaw + theta])
+    target_orn = euler_to_quat(target_orn)
+
     return target_pos, target_orn
 
 def line_scan_move(robot, cam_manager, T_tcp_cam, scan_config, rot_deg:int = None):
@@ -453,7 +476,7 @@ def line_scan_move(robot, cam_manager, T_tcp_cam, scan_config, rot_deg:int = Non
             
     print(f"Line scan completed. Saved to {task_dir}")
 
-def random_move(robot, cam_manager, T_tcp_cam, sampler_config):
+def random_move(robot, cam_manager, T_tcp_cam, sampler_config, centered_sampler_config):
     """
     Moves the robot to random points using the safe sampler.
     """
@@ -468,7 +491,9 @@ def random_move(robot, cam_manager, T_tcp_cam, sampler_config):
     print(f"===== Starting Random Sampler =====")
     print(f"    Task Name: {task_name}")
     print(f"    Poses to collect: {num_poses}")
-    print(f"    Box Limits: X{sampler_config.x_limits} Y{sampler_config.y_limits} Z{sampler_config.z_limits}")
+    if not sampler_config.centered:
+        print(f"    Box Limits: X{sampler_config.x_limits} Y{sampler_config.y_limits} Z{sampler_config.z_limits}")
+    print(f"    Centered: {sampler_config.centered}")
 
     success_count = 0
     attempts = 0
@@ -477,8 +502,10 @@ def random_move(robot, cam_manager, T_tcp_cam, sampler_config):
     while success_count < num_poses and attempts < max_attempts:
         attempts += 1
         print(f"Sampling attempt {attempts} (Collected {success_count}/{num_poses})...")
-        
-        target_pos, target_orn = sample_pose(sampler_config, neutral_orn)
+        if sampler_config.centered:
+            target_pos, target_orn = object_centered_sample_pose(centered_sampler_config)
+        else:
+            target_pos, target_orn = sample_pose(sampler_config, neutral_orn)
         
         try:
             # Move Robot
@@ -536,6 +563,7 @@ def main(cfg: DictConfig):
 
     arch_config = cfg.movement # Spesific arch movement config done in arch move function
     sampler_config = cfg.movement.random_pose
+    centered_sampler_config = cfg.centered_sampler
     line_scan_config = cfg.movement.line_scan
     movement_type = cfg.movement_type # Configure on configs/data_gathering/data_gathering.yaml
     
@@ -562,7 +590,7 @@ def main(cfg: DictConfig):
         print_robot_position(robot, "Initial")
         time.sleep(1)
         if movement_type == "pose_sampler": # Random pose movement start
-            random_move(robot, cam_manager, T_tcp_cam, sampler_config)
+            random_move(robot, cam_manager, T_tcp_cam, sampler_config, centered_sampler_config)
         elif movement_type == "line_scan": # Line scan start
             line_scan_move(robot, cam_manager, T_tcp_cam, line_scan_config, rot_deg=180)
         if movement_type == "arch_parallel": # Arch movementstart
