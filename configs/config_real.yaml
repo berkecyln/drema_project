@@ -1,5 +1,5 @@
 data:
-  source_path: "/home/ceylanb/DreMa/drema_project/input/merged_20260121_174454"
+  source_path: "/home/ceylanb/DreMa/drema_project/input/multi_traj_gold_data"
   # source_path: "/home/gunnleif/Projects/drema_project/input/task_parallel_20260119_173115"
   # source_path: "/home/ceylanb/DreMa/drema_project/input/sample_data/slide_block_to_color_target_episode0_start"
   # source_path: "/home/gunnleif/Projects/drema_project/input/sample_data/put_groceries_in_cupboard_episode1_start"

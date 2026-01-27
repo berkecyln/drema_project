@@ -6,7 +6,7 @@ method: "sam3"
 # Input/output paths
 input_dir: "input"
 # Folders to process; leave empty to process all subdirectories in input_dir
-folders: ["merged_20260121_174454"]
+folders: ["task_parallel_20260121_165112"]
 output_subdir: "object_mask"
 
 # Debug visualization

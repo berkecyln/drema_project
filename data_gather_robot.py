@@ -41,20 +41,17 @@ def recover_to_center(robot):
     """Move the robot back to the neutral (center) position.
     
     Uses the neutral_pose defined in the robot configuration file.
-    This is a safe recovery position.
     
     Args:
         robot: PandaFrankYInterface instance
     """
-    print("====================")
-    print("MOVING CENTER")
-    print("====================")
-    
     print("Moving to neutral pose...")
     robot.move_to_neutral()
 
     final_pos, _ = robot.get_tcp_pos_orn()
-    print(f"Position after recovery: X={final_pos[0]:.3f}, Y={final_pos[1]:.3f}, Z={final_pos[2]:.3f}")
+    #print(f"Position after recovery: X={final_pos[0]:.3f}, Y={final_pos[1]:.3f}, Z={final_pos[2]:.3f}")
+    print("Robot recovered to neutral pose.")
+    time.sleep(1)
 
 def create_bezier_points(robot, flip:bool = False, arch_offset=None) -> tuple:
     """
@@ -460,7 +457,7 @@ def random_move(robot, cam_manager, T_tcp_cam, sampler_config):
     """
     Moves the robot to random points using the safe sampler.
     """
-    num_poses = sampler_config.num_poses
+    num_poses = sampler_config.num_waypoints
     
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     task_name = f"task_random_{timestamp}"
@@ -491,7 +488,7 @@ def random_move(robot, cam_manager, T_tcp_cam, sampler_config):
             
             # Capture & Save
             if cam_manager is not None:
-                # Match calibration approach: use actual robot pose after movement (in NE frame)
+
                 actual_tcp_pos, actual_tcp_orn = robot.get_tcp_pos_orn()
                 
                 data = cam_manager.get_images()
@@ -526,7 +523,7 @@ def print_robot_position(robot, label: str = "Current"):
 # MAIN EXECUTION
 @hydra.main(
     config_path="/home/ceylanb/DreMa/drema_project/configs/data_gathering",
-    config_name="data_gather_task",
+    config_name="data_gethering",
     version_base=None
 )
 def main(cfg: DictConfig):
@@ -537,70 +534,53 @@ def main(cfg: DictConfig):
     cam_manager = None
     T_tcp_cam = None
 
-    arch_config = cfg.movement
-    sampler_config = cfg.pose_sampler
-    line_scan_config = cfg.line_scan
-    movement_type = cfg.movement_type # Configure on configs/data_gathering/data_gather_task.yaml
+    arch_config = cfg.movement # Spesific arch movement config done in arch move function
+    sampler_config = cfg.movement.random_pose
+    line_scan_config = cfg.movement.line_scan
+    movement_type = cfg.movement_type # Configure on configs/data_gathering/data_gathering.yaml
     
     try:
         # Initialize robot
         print("Initializing robot")
         robot = hydra.utils.instantiate(cfg.robot)
         print("Robot initialized successfully")
-
+        
+        # Initialize Camera Manager
         print("Initializing Camera Manager from config...")
         cam_manager = hydra.utils.instantiate(cfg.cams)
         print("Camera Manager initialized.")
 
+        # Load Calibration
         print("Loading calibration...")
         T_tcp_cam = np.load(cfg.calibration_file)
         print("Calibration Matrix Loaded Successfully.")
 
-        print("Robot positioned to neutral pose")
-        recover_to_center(robot)
-        
+        recover_to_center(robot)        
 
         print("Data Gathering starting")
         
         print_robot_position(robot, "Initial")
-        if movement_type == "pose_sampler":
-            # Random pose sampling start
-            time.sleep(1)
+        time.sleep(1)
+        if movement_type == "pose_sampler": # Random pose movement start
             random_move(robot, cam_manager, T_tcp_cam, sampler_config)
-            time.sleep(1)
-             # Random pose sampling end
-        elif movement_type == "line_scan":
-            # Line scan start
-            time.sleep(1)
+        elif movement_type == "line_scan": # Line scan start
             line_scan_move(robot, cam_manager, T_tcp_cam, line_scan_config, rot_deg=180)
-            # Line scan end
-        if movement_type == "arch_parallel":
+        if movement_type == "arch_parallel": # Arch movementstart
             arch_type = "parallel"
-            # Movement sequence start
-            time.sleep(1)
             arch_move(robot, cam_manager, T_tcp_cam, arch_config, arch_type=arch_type)
-            time.sleep(1)
-            # Movement sequence end
         elif movement_type == "arch_skewed_clockwise":
-            arch_type = "skewed_clockwise"
-            # Movement sequence start
-            time.sleep(1)
+            arch_type = "skewed_clockwise" # Clockwise skewed arch sequence start
             arch_move(robot, cam_manager, T_tcp_cam, arch_config, arch_type=arch_type)
-            time.sleep(1)
-            # Movement sequence end
-        elif movement_type == "arch_skewed_counterclockwise":
+        elif movement_type == "arch_skewed_counterclockwise":  # Counterclockwise skewed arch sequence start
             arch_type = "skewed_counterclockwise"
-            # Movement sequence start
-            time.sleep(1)
             arch_move(robot, cam_manager, T_tcp_cam, arch_config, arch_type=arch_type)
-            time.sleep(1)
-            # Movement sequence end
+        
+        time.sleep(1)
         
         print_robot_position(robot, "Final")
 
         print("Data Gathering completed")
 
-        print("Robot positioned to neutral pose")
         recover_to_center(robot)
 
     except KeyboardInterrupt:
