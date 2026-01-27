@@ -1,0 +1,76 @@
+preparation:
+  rgb_folder: "images"
+  depth_folder: "depth"
+  depth_format: "np" # "np" or "png"
+  depth_scale: 1
+  depth_compressed: True
+  label_file: "labels.txt"
+  merge_labels: True
+  object_mask_folder: "object_masks"
+
+
+assets:
+  use_original_guassians: False
+  use_depth: False
+  gaussians_iterations: 7_000
+  extract_gaussians_objects: True
+  extract_table: True
+  extract_mesh_objects: True
+  extract_urdf_objects: True
+  extract_gaussians_robot: False
+  extract_gaussians_environment: True
+  extract_mesh_environment: False
+  filter_objects_gaussians_environment: True
+
+
+reference_frame:
+  compute_colmap: False
+  poses_folder: "poses"
+  change_reference_frame: False
+  align_colmap_reference: False
+
+
+model:
+  sh_degree: 3
+  images: "images"
+  resolution: -1
+  white_background: False
+  data_device: "cuda"
+  eval:
+  source_path: ""
+  depths: "depth_scaled"
+
+pipeline:
+  convert_SHs_python: False
+  compute_cov3D_python: False
+  depth_ratio: 0.0
+  debug: False
+
+optimization:
+  iterations: 7_000
+  position_lr_init: 0.00016
+  position_lr_final: 0.0000016
+  position_lr_delay_mult: 0.01
+  position_lr_max_steps: 30_000
+  feature_lr: 0.0025
+  opacity_lr: 0.05
+  scaling_lr: 0.005
+  rotation_lr: 0.001
+  percent_dense: 0.01
+  lambda_dssim: 0.2
+  lambda_depth: 0.5
+  lambda_normal: 0.05
+  lambda_dist: 0.0
+  densification_interval: 100
+  opacity_reset_interval: 3000
+  densify_from_iter: 500
+  densify_until_iter: 15_000
+  densify_grad_threshold: 0.0002
+  random_background: False
+  
+  voxel_size: -1.0
+  depth_trunc: -1.0
+  sdf_trunc: -1.0
+  num_cluster: 50
+  unbounded: False
+  mesh_res: 1024
