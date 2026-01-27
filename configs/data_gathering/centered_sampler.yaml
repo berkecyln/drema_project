@@ -1,6 +1,4 @@
-
-# initial_pos: [0.5, 0, 0.3]
-initial_pos: [0.31, 0, 0.47] # initial posotion based on robot.move_to_neutral()
+initial_pos: [0.31, 0, 0.47]
 initial_orn: ???
 theta_limits: [-1.57, 1.57]
 r_limits: [0.05, 0.1]

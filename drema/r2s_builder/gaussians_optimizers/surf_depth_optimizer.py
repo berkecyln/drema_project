@@ -41,8 +41,8 @@ class SurfDepthTrainer(BaseTrainer):
         loss = (1.0 - self.opt.lambda_dssim) * Ll1 + self.opt.lambda_dssim * (1.0 - ssim(image, gt_image))
 
         # regularization
-        lambda_normal = self.opt.lambda_normal if iteration > 7000 else 0.0
-        lambda_dist = self.opt.lambda_dist if iteration > 3000 else 0.0 #BN: reason of huge spike at 3000 since we exclude dist loss before
+        lambda_normal = self.opt.lambda_normal if iteration > 15000 else 0.0
+        lambda_dist = self.opt.lambda_dist if iteration > 6000 else 0.0
 
         rend_dist = render_pkg["rend_dist"]
         rend_normal = render_pkg['rend_normal']

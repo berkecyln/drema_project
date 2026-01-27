@@ -173,7 +173,7 @@ cython_debug/
 outputs/
 input/
 sample_data/
-logs/
+#logs/
 vahcd_log.txt
 sam3/
 robot_io/

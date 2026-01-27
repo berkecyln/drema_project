@@ -59,9 +59,9 @@ optimization:
   rotation_lr: 0.001
   percent_dense: 0.01
   lambda_dssim: 0.2
-  lambda_depth: 0.1 # Higher value gives more depth sensor trust on 3D geometry
-  lambda_normal: 0.01 # Higher value smoothes the surface
-  lambda_dist: 0.01 # Higher value cleans more gaussians far away
+  lambda_depth: 0.2 # Higher value gives more depth sensor trust on 3D geometry
+  lambda_normal: 0.00 # Higher value smoothes the surface
+  lambda_dist: 0.02 # Higher value cleans more gaussians far away TRY 0.1
   densification_interval: 100
   opacity_reset_interval: 3000
   densify_from_iter: 500
@@ -69,12 +69,13 @@ optimization:
   # Higher value results in less gaussians being added + Faster training
   # Lower value results in more gaussians being added + Slower training
   # \/ \/ \/ \/ \/ \/
-  densify_grad_threshold: 0.0001 
+  densify_grad_threshold: 0.0002 
   random_background: False
   
-  voxel_size: -1.0
-  depth_trunc: -1.0
-  sdf_trunc: -1.0
+  # Tuning for 360p resolution & RealSense noise
+  voxel_size: 0.004   # 4mm voxels (was auto ~1mm, causing holes)
+  sdf_trunc: 0.02     # 2cm integration threshold (was auto ~5mm) TRY 0.04
+  depth_trunc: 3.0    # Limit integration depth
   num_cluster: 50
   unbounded: False
-  mesh_res: 1024
+  mesh_res: -1        # Ignored when voxel_size is set
