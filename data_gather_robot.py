@@ -408,7 +408,7 @@ def object_centered_sample_pose(centered_sampler_config):
     trans = np.cross(np.array([0, 0, 1]), vec)
     trans = trans * np.random.uniform(*centered_sampler_config.trans_limits)
     height = np.array([0, 0, 1]) * np.random.uniform(*centered_sampler_config.h_limits)
-    trans_final = centered_sampler_config.initial_pos + vec + trans + height
+    trans_final = np.array(centered_sampler_config.initial_pos) + vec + trans + height
 
     yaw = np.random.uniform(*centered_sampler_config.yaw_limits)
     pitch = np.random.uniform(*centered_sampler_config.pitch_limit)
@@ -420,14 +420,14 @@ def object_centered_sample_pose(centered_sampler_config):
 
     return target_pos, target_orn
 
-def line_scan_move(robot, cam_manager, T_tcp_cam, scan_config, rot_deg:int = None):
+def line_scan_move(robot, cam_manager, T_tcp_cam, scan_config, num_waypoints, rot_deg = None):
     """
     Move in a straight line for cleaner data verification.
     """
     # Get parameters from config
     start_pos = np.array(scan_config.start_point)
     end_pos = np.array(scan_config.end_point)
-    num_steps = scan_config.num_waypoints
+    num_steps = num_waypoints
     
     # Neutral orientation
     _, neutral_orn = robot.get_tcp_pos_orn()
@@ -476,14 +476,17 @@ def line_scan_move(robot, cam_manager, T_tcp_cam, scan_config, rot_deg:int = Non
             
     print(f"Line scan completed. Saved to {task_dir}")
 
-def random_move(robot, cam_manager, T_tcp_cam, sampler_config, centered_sampler_config):
+def random_move(robot, cam_manager, T_tcp_cam, sampler_config, num_waypoints):
     """
     Moves the robot to random points using the safe sampler.
     """
-    num_poses = sampler_config.num_waypoints
+    num_poses = num_waypoints
     
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    task_name = f"task_random_{timestamp}"
+    if sampler_config.centered:
+        task_name = f"task_centered_random_{timestamp}"
+    else:
+        task_name = f"task_random_{timestamp}"
     task_dir = os.path.join(INPUT_PATH, task_name)
     
     _, neutral_orn = robot.get_tcp_pos_orn()
@@ -501,9 +504,10 @@ def random_move(robot, cam_manager, T_tcp_cam, sampler_config, centered_sampler_
 
     while success_count < num_poses and attempts < max_attempts:
         attempts += 1
-        print(f"Sampling attempt {attempts} (Collected {success_count}/{num_poses})...")
+        #print(f"Sampling attempt {attempts} (Collected {success_count}/{num_poses})...")
         if sampler_config.centered:
-            target_pos, target_orn = object_centered_sample_pose(centered_sampler_config)
+            centerd_sampler_config = sampler_config.centered_sampler
+            target_pos, target_orn = object_centered_sample_pose(centerd_sampler_config)
         else:
             target_pos, target_orn = sample_pose(sampler_config, neutral_orn)
         
@@ -550,7 +554,7 @@ def print_robot_position(robot, label: str = "Current"):
 # MAIN EXECUTION
 @hydra.main(
     config_path="/home/ceylanb/DreMa/drema_project/configs/data_gathering",
-    config_name="data_gethering",
+    config_name="data_gathering.yaml",
     version_base=None
 )
 def main(cfg: DictConfig):
@@ -563,8 +567,8 @@ def main(cfg: DictConfig):
 
     arch_config = cfg.movement # Spesific arch movement config done in arch move function
     sampler_config = cfg.movement.random_pose
-    centered_sampler_config = cfg.centered_sampler
     line_scan_config = cfg.movement.line_scan
+    num_waypoints = cfg.movement.num_waypoints
     movement_type = cfg.movement_type # Configure on configs/data_gathering/data_gathering.yaml
     
     try:
@@ -589,10 +593,10 @@ def main(cfg: DictConfig):
         
         print_robot_position(robot, "Initial")
         time.sleep(1)
-        if movement_type == "pose_sampler": # Random pose movement start
-            random_move(robot, cam_manager, T_tcp_cam, sampler_config, centered_sampler_config)
+        if movement_type == "random_pose": # Random pose movement start
+            random_move(robot, cam_manager, T_tcp_cam, sampler_config, num_waypoints)
         elif movement_type == "line_scan": # Line scan start
-            line_scan_move(robot, cam_manager, T_tcp_cam, line_scan_config, rot_deg=180)
+            line_scan_move(robot, cam_manager, T_tcp_cam, line_scan_config, num_waypoints, rot_deg=None)
         if movement_type == "arch_parallel": # Arch movementstart
             arch_type = "parallel"
             arch_move(robot, cam_manager, T_tcp_cam, arch_config, arch_type=arch_type)
