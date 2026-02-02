@@ -194,6 +194,34 @@ def get_orientation(position, t, start, end, corner, max_tilt, initial_orn) -> n
     
     return quat
 
+def look_at_center(current_pos, target_pos) -> np.array:
+    z = target_pos - current_pos
+    z /= np.linalg.norm(z)
+    
+    world_z = np.array([0, 0, 1])
+    # Keep camera "level"
+    x = np.cross(world_z, z)
+    if np.linalg.norm(x) < 1e-3: x = np.array([1, 0, 0])
+    x /= np.linalg.norm(x)
+    
+    y = np.cross(z, x)
+    y /= np.linalg.norm(y)
+    
+    return Rotation.from_matrix(np.column_stack([x, y, z])).as_quat()
+
+def generate_orbit_path(center, radius, height, start, end, steps) -> list:
+    path = []
+    print(f"Generating Orbit: R={radius}, H={height}, Ang={start}->{end}")
+    
+    for theta in np.linspace(np.radians(start), np.radians(end), steps):
+        pos = center + np.array([
+            radius * np.cos(theta),
+            radius * np.sin(theta),
+            height
+        ])
+        path.append((pos, look_at_center(pos, center)))
+    return path
+
 def generate_arch_path(robot, start, end, corner, num_waypoints, initial_orn) -> tuple:
     """
     Generate arch path based on Quadratic Bézier Curve from start to end point.
@@ -253,14 +281,11 @@ def save_frame(data, index, task_dir, cam_manager, T_tcp_cam):
     cv2.imwrite(os.path.join(rgb_dir, f"{index:04d}.png"), bgr_image)
 
     # Save Depth Image
-    depth_scaled_dir = os.path.join(task_dir, "depth_scaled_10x")
     depth_dir = os.path.join(task_dir, "depth_scaled")
-    os.makedirs(depth_scaled_dir, exist_ok=True)
     os.makedirs(depth_dir, exist_ok=True)
     
     np.save(os.path.join(depth_dir, f"{index:04d}.npy"), data['depth'])
     depth_10x = data['depth'] * 10  # scale with 10
-    np.save(os.path.join(depth_scaled_dir, f"{index:04d}.npy"), depth_10x)
 
     # Save Poses (Camera -> World, i.e., C2W format expected by DreMa)
     pose_dir = os.path.join(task_dir, "poses")
@@ -342,7 +367,7 @@ def arch_move(robot, cam_manager=None, T_tcp_cam=None, arch_config=None, arch_ty
     for idx, (position, orientation) in enumerate(zip(positions[1:], orientations[1:]), 1):
         #print(f"    Moving to waypoint {idx + 1}/{len(path)}: X={position[0]:.3f}, Y={position[1]:.3f}, Z={position[2]:.3f}, Ori={orientation}")
         robot.move_cart_pos_abs_lin(position, orientation)
-        time.sleep(1)
+        time.sleep(1.5)
         if cam_manager is not None:
             actual_tcp_pos, actual_tcp_orn = robot.get_tcp_pos_orn()
             
@@ -360,6 +385,40 @@ def arch_move(robot, cam_manager=None, T_tcp_cam=None, arch_config=None, arch_ty
             
     #robot.move_cart_waypoints(positions[1:], orientations[1:])
     print("Arch movement completed.")
+
+def orbit_move(robot, cam_manager, T_tcp_cam, cfg):
+    initial_pos, _ = robot.get_tcp_pos_orn()
+    p = cfg.orbit
+    
+    center = initial_pos + np.array(p.center_offset)
+    path = generate_orbit_path(center, p.radius, p.height, 
+                             p.start_angle, p.end_angle, cfg.num_waypoints)
+
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    task_dir = os.path.join(INPUT_PATH, f"task_orbit_{ts}")
+    os.makedirs(task_dir, exist_ok=True)
+    
+    print(f"Orbit Start: {task_dir}")
+    robot.move_cart_pos_abs_lin(path[0][0], path[0][1])
+    time.sleep(2)
+    
+    for i, (pos, orn) in enumerate(path[1:], 1):
+        robot.move_cart_pos_abs_lin(pos, orn)
+        time.sleep(1)
+        if cam_manager:
+            curr_pos, curr_orn = robot.get_tcp_pos_orn()
+            imgs = cam_manager.get_images()
+
+            data_point = {
+                'rgb': imgs['rgb_gripper'],
+                'depth': imgs['depth_gripper'],
+                'tcp_pos': curr_pos,
+                'tcp_orn': curr_orn
+            }
+            
+            save_frame(data_point, i, task_dir, cam_manager, T_tcp_cam)
+            cam_manager.render()
+    print("Orbit Done.")
 
 def sample_pose(cfg_sampler, neutral_euler):
     """
@@ -597,6 +656,8 @@ def main(cfg: DictConfig):
             random_move(robot, cam_manager, T_tcp_cam, sampler_config, num_waypoints)
         elif movement_type == "line_scan": # Line scan start
             line_scan_move(robot, cam_manager, T_tcp_cam, line_scan_config, num_waypoints, rot_deg=None)
+        elif movement_type == "orbit":
+            orbit_move(robot, cam_manager, T_tcp_cam, arch_config)
         if movement_type == "arch_parallel": # Arch movementstart
             arch_type = "parallel"
             arch_move(robot, cam_manager, T_tcp_cam, arch_config, arch_type=arch_type)

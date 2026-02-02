@@ -13,7 +13,7 @@ task_name_prefix: "task_"
 calibration_file: /home/ceylanb/robot/robot_io/robot_io/calibration/calibration_files/panda_realsenseD435_T_tcp_cam.npy
 
 # "arch_parallel", "arch_skewed_clockwise", "arch_skewed_counterclockwise", "random_pose", "line_scan"
-movement_type: "random_pose"
+movement_type: "orbit"
 
 movement:
   num_waypoints: 100
@@ -55,3 +55,9 @@ movement:
   line_scan:
     start_point: [0.30, -0.35, 0.60] # X, Y, Z
     end_point:   [0.30,  0.20, 0.60] # X, Y, Z
+  orbit:
+    center_offset: [0.0, 0.0, -0.3]   # X,Y,Z offset from initial pose
+    radius: 0.11                      # Distance from center
+    height: 0.15                      # Z offset (height above center)
+    start_angle: -120                 # Scan start (degrees)
+    end_angle: 120                    # Scan end (degrees) - Full sweep
