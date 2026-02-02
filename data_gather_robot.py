@@ -404,7 +404,7 @@ def orbit_move(robot, cam_manager, T_tcp_cam, cfg):
     
     for i, (pos, orn) in enumerate(path[1:], 1):
         robot.move_cart_pos_abs_lin(pos, orn)
-        time.sleep(1)
+        time.sleep(1.5)
         if cam_manager:
             curr_pos, curr_orn = robot.get_tcp_pos_orn()
             imgs = cam_manager.get_images()
