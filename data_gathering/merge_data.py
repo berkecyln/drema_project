@@ -4,7 +4,7 @@ import glob
 import datetime
 
 def merge_input_folders(input_folders, output_folder):
-    subfolders = ['images', 'depth', 'depth_scaled', 'poses']
+    subfolders = ['images', 'depth', 'depth_scaled', 'poses', 'object_mask']
     os.makedirs(output_folder, exist_ok=True)
     for sub in subfolders:
         os.makedirs(os.path.join(output_folder, sub), exist_ok=True)
@@ -30,6 +30,11 @@ def merge_input_folders(input_folders, output_folder):
                 if os.path.exists(src):
                     dst = os.path.join(output_folder, sub, f"{idx:04d}{sub_ext}")
                     shutil.copy2(src, dst)
+                # Copy corresponding object_mask file (if it exists)
+                obj_mask_src = os.path.join(folder, 'object_mask', f"{base_idx}.png")
+                if os.path.exists(obj_mask_src):
+                    obj_mask_dst = os.path.join(output_folder, 'object_mask', f"{idx:04d}.png")
+                    shutil.copy2(obj_mask_src, obj_mask_dst)
             idx += 1
 
     print(f"Merge complete! Output in: {output_folder}")
@@ -38,11 +43,9 @@ if __name__ == "__main__":
     # add folders to merge here
     script_dir = os.path.dirname(os.path.abspath(__file__))
     input_folders = [
-        os.path.join(script_dir, "../input/task_parallel_20260121_165112"),
-        os.path.join(script_dir, "../input/task_skewed_clockwise_20260121_165920"),
-        os.path.join(script_dir, "../input/task_skewed_counterclockwise_20260121_165528"),
-        #os.path.join(script_dir, "../input/task_line_scan_20260121_171731")
-    ]
+        os.path.join(script_dir, "../input/line_scan"),
+        os.path.join(script_dir, "../input/orbit"),
+        ]
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     output_folder = os.path.join(script_dir, f"../input/merged_{timestamp}")
     merge_input_folders(input_folders, output_folder)
