@@ -13,10 +13,10 @@ task_name_prefix: "task_"
 calibration_file: /home/ceylanb/robot/robot_io/robot_io/calibration/calibration_files/panda_realsenseD435_T_tcp_cam.npy
 
 # "arch_parallel", "arch_skewed_clockwise", "arch_skewed_counterclockwise", "random_pose", "line_scan"
-movement_type: "orbit"
+movement_type: "arch_parallel"
 
 movement:
-  num_waypoints: 100
+  num_waypoints: 300
   flip_orientation: false
   arch_parallel:
     start_offset:  [0.0, -0.4, -0.1]  # X, Y, Z
