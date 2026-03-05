@@ -38,6 +38,8 @@ class CameraInfo(NamedTuple):
     image_name: str
     width: int
     height: int
+    cx: float = None
+    cy: float = None
 
 
 class SceneInfo(NamedTuple):
@@ -110,8 +112,20 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
             depth_path = None
             depths = None
         '''
+        # Extract principal point from intrinsics params (PINHOLE: [fx, fy, cx, cy])
+        if intr.model == "PINHOLE" and len(intr.params) >= 4:
+            cx = float(intr.params[2])
+            cy = float(intr.params[3])
+        elif intr.model == "SIMPLE_PINHOLE" and len(intr.params) >= 3:
+            cx = float(intr.params[1])
+            cy = float(intr.params[2])
+        else:
+            cx = None
+            cy = None
+
         cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
-                              image_path=image_path, image_name=image_name, width=width, height=height)
+                              image_path=image_path, image_name=image_name, width=width, height=height,
+                              cx=cx, cy=cy)
         cam_infos.append(cam_info)
     sys.stdout.write('\n')
     return cam_infos

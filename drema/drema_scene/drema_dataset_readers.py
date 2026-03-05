@@ -25,6 +25,8 @@ class CameraInfoDepth(NamedTuple):
     height: int
     depth_path: str
     depth_image: np.array
+    cx: float = None
+    cy: float = None
 
 
 def readTxtSceneInfo(path, images, eval, depth_folder):
@@ -49,7 +51,8 @@ def readTxtSceneInfo(path, images, eval, depth_folder):
                                                         image=cam_info.image, image_path=cam_info.image_path,
                                                         depth_path=depth_path, depth_image=depth_image, R=cam_info.R,
                                                         T=cam_info.T, FovX=cam_info.FovX, FovY=cam_info.FovY,
-                                                        width=cam_info.width, height=cam_info.height))
+                                                        width=cam_info.width, height=cam_info.height,
+                                                        cx=cam_info.cx, cy=cam_info.cy))
 
     cam_infos = sorted(cam_infos_depth_unsorted.copy(), key=lambda x : x.image_name)
     train_cam_infos = cam_infos
@@ -78,8 +81,11 @@ def fetchTxtPly(cameras):
         image = camera.image
         depth = camera.depth_image
 
-        #get point cloud
-        K = np.array([[fx, 0, camera.width/2], [0, fy, camera.height/2], [0, 0, 1]])
+        # Use actual principal point (cx, cy) from intrinsics if available,
+        # otherwise fall back to image center
+        ppx = camera.cx if camera.cx is not None else camera.width / 2
+        ppy = camera.cy if camera.cy is not None else camera.height / 2
+        K = np.array([[fx, 0, ppx], [0, fy, ppy], [0, 0, 1]])
 
         points = project_depth(depth, K)
         points = points[(depth > 0).reshape(-1), :]
