@@ -2,7 +2,7 @@ preparation:
   rgb_folder: "images"
   depth_folder: "depth"
   depth_format: "np" # "np" or "png"
-  depth_scale: 10
+  depth_scale: 1
   depth_compressed: True
   label_file: "labels.txt"
   merge_labels: True
@@ -12,7 +12,7 @@ preparation:
 assets:
   use_original_guassians: False
   use_depth: True
-  gaussians_iterations: 30_000
+  gaussians_iterations: 7_000
   extract_gaussians_objects: True
   extract_table: True
   extract_mesh_objects: True
@@ -48,7 +48,7 @@ pipeline:
   debug: False
 
 optimization:
-  iterations: 30_000
+  iterations: 7_000
   position_lr_init: 0.00016
   position_lr_final: 0.0000016
   position_lr_delay_mult: 0.01
@@ -59,23 +59,19 @@ optimization:
   rotation_lr: 0.001
   percent_dense: 0.01
   lambda_dssim: 0.2
-  lambda_depth: 0.2 # Higher value gives more depth sensor trust on 3D geometry
-  lambda_normal: 0.00 # Higher value smoothes the surface
-  lambda_dist: 0.02 # Higher value cleans more gaussians far away TRY 0.1
+  lambda_depth: 0.5
+  lambda_normal: 0.05
+  lambda_dist: 0.0
   densification_interval: 100
   opacity_reset_interval: 3000
   densify_from_iter: 500
   densify_until_iter: 15_000
-  # Higher value results in less gaussians being added + Faster training
-  # Lower value results in more gaussians being added + Slower training
-  # \/ \/ \/ \/ \/ \/
-  densify_grad_threshold: 0.0002 
+  densify_grad_threshold: 0.0002
   random_background: False
   
-  # Tuning for 360p resolution & RealSense noise
-  voxel_size: 0.004   # 4mm voxels (was auto ~1mm, causing holes)
-  sdf_trunc: 0.02     # 2cm integration threshold (was auto ~5mm) TRY 0.04
-  depth_trunc: 3.0    # Limit integration depth
+  voxel_size: -1.0
+  depth_trunc: -1.0
+  sdf_trunc: -1.0
   num_cluster: 50
   unbounded: False
-  mesh_res: -1        # Ignored when voxel_size is set
+  mesh_res: 1024
