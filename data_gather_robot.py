@@ -319,6 +319,8 @@ def save_frame(data, index, task_dir, cam_manager, T_tcp_cam):
         f.write("\n")
         np.savetxt(f, K, fmt='%.6f')
 
+# TODO: Add get distortion coefficant function via realsense.py get_dist_coeffs and save it to distortion_coeffs.txt 
+
 def arch_move(robot, cam_manager=None, T_tcp_cam=None, arch_config=None, arch_type="parallel"):
     """Move the robot along an arch path defined by a Bezier curve.
     
