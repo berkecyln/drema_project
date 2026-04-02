@@ -107,8 +107,6 @@ def main(cfg: DictConfig) -> None:
     if assets.extract_table:
         # extract the table
         # TODO: extract table even without depth
-        assert assets.use_depth, "Extracting objects requires depth to extract the table in the current implementation"
-        # get first value of the table labels
         table_labels = list(table_labels.values())[0]
         print("================Table Extraction================")
         assets_manager.extract_table(table_labels)

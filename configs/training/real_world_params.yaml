@@ -11,7 +11,7 @@ preparation:
 
 assets:
   use_original_guassians: False
-  use_depth: True
+  use_depth: False
   gaussians_iterations: 7_000
   extract_gaussians_objects: True
   extract_table: True
