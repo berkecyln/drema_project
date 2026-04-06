@@ -42,6 +42,43 @@ def post_process_mesh(mesh, cluster_to_keep=1000):
     return mesh_0
 
 
+def extract_mesh_poisson(gaussians, viewpoint_stack, opt):
+    xyz = gaussians.get_xyz.detach().cpu().numpy()
+    opacity = gaussians.get_opacity.squeeze().detach().cpu().numpy()
+    opacity_threshold = getattr(opt, 'poisson_opacity_threshold', 0.1)
+    mask = opacity > opacity_threshold
+    xyz_filtered = xyz[mask]
+    print(f"Poisson input: {xyz_filtered.shape[0]} / {xyz.shape[0]} Gaussians (opacity > {opacity_threshold})")
+
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(xyz_filtered)
+    pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+
+    c2ws = np.array([
+        np.linalg.inv(np.asarray((cam.world_view_transform.T).cpu().numpy()))
+        for cam in viewpoint_stack
+    ])
+    mean_camera_center = c2ws[:, :3, 3].mean(axis=0)
+    pcd.orient_normals_towards_camera_location(mean_camera_center)
+
+    poisson_depth = getattr(opt, 'poisson_depth', 9)
+    density_threshold = getattr(opt, 'poisson_density_threshold', 0.1)
+
+    mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=poisson_depth)
+    densities = np.asarray(densities)
+    vertices_to_remove = densities < np.quantile(densities, density_threshold)
+    mesh.remove_vertices_by_mask(vertices_to_remove)
+
+    print(f"Poisson done. Vertices: {len(mesh.vertices)}, Triangles: {len(mesh.triangles)}")
+    return mesh
+
+
+def fill_mesh_holes(mesh):
+    t_mesh = o3d.t.geometry.TriangleMesh.from_legacy(mesh)
+    filled = t_mesh.fill_holes()
+    return filled.to_legacy()
+
+
 def to_cam_open3d(viewpoint_stack):
     camera_traj = []
     for i, viewpoint_cam in enumerate(viewpoint_stack):

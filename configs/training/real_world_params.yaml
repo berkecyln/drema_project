@@ -21,7 +21,9 @@ assets:
   extract_gaussians_environment: True
   extract_mesh_environment: False
   filter_objects_gaussians_environment: True
-  filter_mesh_objects: True  # Set to False to disable table-based mesh filtering
+  filter_mesh_objects: True
+  fill_mesh_holes: False
+  mesh_method: "tsdf"  # "tsdf" (default) or "poisson"
 
 
 reference_frame:
@@ -75,3 +77,6 @@ optimization:
   num_cluster: 50
   unbounded: False
   mesh_res: 1024
+  poisson_depth: 9
+  poisson_density_threshold: 0.1
+  poisson_opacity_threshold: 0.1
