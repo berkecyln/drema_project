@@ -134,12 +134,19 @@ This repo is a fork/extension of the original Amsterdam University DreMa project
 - Point cloud aggregation pipeline
 - Various bug fixes and real-world robustness improvements
 
-**Active research direction:** Improving mesh quality for static objects. The current TSDF-from-Gaussians pipeline produces incomplete meshes because the wrist-mounted camera never sees the bottom of objects resting on the table — that region is completely absent (never captured by TSDF, not a bounded hole). Articulated objects are a future goal, not the current focus.
+**Active research direction:** Improving mesh quality for static objects. Core problem: wrist-mounted RealSense never sees object bottoms → open-bottom meshes. Articulated objects are a future goal.
+
+**Confirmed working — active settings (2026-04-07):**
+- `mesh_method: "tsdf_raw_depth"` — bypasses GS-rendered depth, feeds raw RealSense depth directly into TSDF. Measured 4x precision improvement (GS depth was blurry/distorted). Set in `real_world_params.yaml`.
+- `depth_ratio: 1.0` — bounded scene uses median depth strategy. Quantitatively confirmed: consistent recall improvement across all objects (more real geometry covered by mesh). Set in `experiment_pipeline_fixes.yaml`.
+- `position_lr_max_steps: 7000` — must match actual training length. Was 30000, causing LR to never fully decay. Set in `experiment_pipeline_fixes.yaml`.
+
+**Quantitative evaluation (established 2026-04-07):**
+Bidirectional Chamfer distance against `input/gold_data_undistort/aggregated_pointcloud.ply` using fixed per-object bbox. Precision (mesh→ref) measures accuracy; recall (ref→mesh) measures completeness. Step results (mean recall): original 10.1mm → tsdf_raw_depth 7.6mm → +depth_ratio=1.0 6.0mm. More points (100→1000 init) had minimal effect.
 
 **What was tried and why it failed:**
-- `open3d fill_holes()` — no effect. Missing bottom is absent geometry (TSDF never created voxels there), not a bounded hole. Vertex count identical before and after.
-- **Poisson v1** (opacity>0.5, density_threshold=0.1) — better skeleton shape but many holes. Only 23% of Gaussians used. Density trim of 10% removed the extrapolated bottom — contradiction.
-- **Poisson v2** (opacity>0.1, density_threshold=0.0) — unseen regions stretched/ballooned outward. Classic Poisson failure on absent data: side-wall normals extrapolate into a skirt rather than a flat cap. Structurally the wrong tool for a one-sided (always above) capture setup.
+- `open3d fill_holes()` — no effect. Missing bottom is absent geometry, not a bounded hole.
+- **Poisson v1/v2** — structurally wrong for one-sided capture. Side-wall normals extrapolate as skirt rather than flat cap.
 - **SAM3D on hold:** Requires 32GB VRAM minimum — does not run on any available hardware (RTX 3090 = 24GB max).
 
 **NeuS2 — ABANDONED (2026-04-06): structurally wrong for top-only cameras**
@@ -152,7 +159,7 @@ NeuS2 was fully built and integrated (9 bugs fixed). Final result: flat pancake 
 |--------|---------|
 | `main` | Stable base |
 | `mesh_improve` | Fill-holes + Poisson mesh option |
-| `triposr` | TripoSR single-image mesh extraction (based on `mesh_improve`) — **active** |
+| `triposr` | TripoSR single-image mesh extraction (based on `mesh_improve`) |
 | `neus2` | NeuS2 integration (based on `mesh_improve`, abandoned) |
 
 ## TripoSR — INTEGRATED (2026-04-06)
