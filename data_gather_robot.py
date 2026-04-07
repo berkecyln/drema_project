@@ -275,35 +275,25 @@ def save_frame(data, index, task_dir, cam_manager, T_tcp_cam):
     # Save RGB Image
     rgb_dir = os.path.join(task_dir, "images")
     os.makedirs(rgb_dir, exist_ok=True)
-    
-    # RGB is usually RGB in dictionary, convert to BGR for OpenCV
     bgr_image = data['rgb'][:, :, ::-1]
     cv2.imwrite(os.path.join(rgb_dir, f"{index:04d}.png"), bgr_image)
 
     # Save Depth Image
     depth_dir = os.path.join(task_dir, "depth_scaled")
     os.makedirs(depth_dir, exist_ok=True)
-    
     np.save(os.path.join(depth_dir, f"{index:04d}.npy"), data['depth'])
-    depth_10x = data['depth'] * 10  # scale with 10
 
-    # Save Poses (Camera -> World, i.e., C2W format expected by DreMa)
+    # Save Poses (C2W format expected by DreMa)
     pose_dir = os.path.join(task_dir, "poses")
     os.makedirs(pose_dir, exist_ok=True)
-    # Get Robot Pose (Base -> TCP)
     tcp_pos = data['tcp_pos']
-    tcp_orn = data['tcp_orn'] # [x, y, z, w]
-    
+    tcp_orn = data['tcp_orn']
+
     T_base_tcp = np.eye(4)
     T_base_tcp[:3, 3] = tcp_pos
     T_base_tcp[:3, :3] = Rotation.from_quat(tcp_orn).as_matrix()
-
-    # Calculate Camera Pose (Base -> Camera) using loaded calibration
-    # T_base_cam = T_base_tcp * T_tcp_cam
-    # This gives Camera-to-World (C2W) transform - camera position/orientation in robot base frame
     T_base_cam = T_base_tcp @ T_tcp_cam
 
-    # Get Camera Intrinsics (positive focal lengths - standard OpenCV convention)
     intrinsics = cam_manager.gripper_cam.get_intrinsics()
     K = np.eye(3)
     K[0, 0] = intrinsics['fx']
@@ -311,15 +301,36 @@ def save_frame(data, index, task_dir, cam_manager, T_tcp_cam):
     K[0, 2] = intrinsics['cx']
     K[1, 2] = intrinsics['cy']
 
-    # Write to text file
     pose_file = os.path.join(pose_dir, f"{index:04d}.txt")
     with open(pose_file, "w") as f:
-        # Save C2W pose (camera pose in world coordinates) - DreMa expects this format
-        np.savetxt(f, T_base_cam, fmt='%.6f') 
+        np.savetxt(f, T_base_cam, fmt='%.6f')
         f.write("\n")
         np.savetxt(f, K, fmt='%.6f')
 
-# TODO: Add get distortion coefficant function via realsense.py get_dist_coeffs and save it to distortion_coeffs.txt 
+    # Save distortion coefficients once (used by undistort_data.py)
+    if index == 1:
+        dist_coeffs = cam_manager.gripper_cam.get_dist_coeffs()
+        np.savetxt(os.path.join(task_dir, "distortion_coeffs.txt"), dist_coeffs)
+
+    # Save IR stereo frames if enabled
+    gripper_cam = cam_manager.gripper_cam
+    if getattr(gripper_cam, 'save_ir', False) and gripper_cam.last_ir_left is not None:
+        ir_left_dir = os.path.join(task_dir, "images_ir_left")
+        ir_right_dir = os.path.join(task_dir, "images_ir_right")
+        os.makedirs(ir_left_dir, exist_ok=True)
+        os.makedirs(ir_right_dir, exist_ok=True)
+        cv2.imwrite(os.path.join(ir_left_dir, f"{index:04d}.png"), gripper_cam.last_ir_left)
+        cv2.imwrite(os.path.join(ir_right_dir, f"{index:04d}.png"), gripper_cam.last_ir_right)
+
+        if index == 1:
+            import json
+            ir_meta = {
+                'intrinsics': gripper_cam.get_ir_intrinsics(),
+                'baseline_m': gripper_cam.get_stereo_baseline(),
+                'flipped': gripper_cam.flipped_cam,
+            }
+            with open(os.path.join(task_dir, "ir_metadata.json"), 'w') as f:
+                json.dump(ir_meta, f, indent=2)
 
 def arch_move(robot, cam_manager=None, T_tcp_cam=None, arch_config=None, arch_type="parallel"):
     """Move the robot along an arch path defined by a Bezier curve.
