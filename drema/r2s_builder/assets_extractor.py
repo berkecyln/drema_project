@@ -161,6 +161,8 @@ class AssetsManager:
         if extract_mesh:
             if self.mesh_method == 'poisson':
                 mesh = extract_mesh_poisson(trainer.gaussians, trainer.scene.getTrainCameras(), trainer.opt)
+            elif self.mesh_method == 'tsdf_raw_depth':
+                mesh = trainer.extract_mesh(depth_dir=os.path.join(self.source_path, "depth_scaled"))
             else:
                 mesh = trainer.extract_mesh()
             if self.filter_mesh_objects:
@@ -192,6 +194,8 @@ class AssetsManager:
         if extract_mesh:
             if self.mesh_method == 'poisson':
                 mesh = extract_mesh_poisson(trainer.gaussians, trainer.scene.getTrainCameras(), trainer.opt)
+            elif self.mesh_method == 'tsdf_raw_depth':
+                mesh = trainer.extract_mesh(depth_dir=os.path.join(self.source_path, "depth_scaled"))
             else:
                 mesh = trainer.extract_mesh()
             if self.fill_holes:

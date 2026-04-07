@@ -158,6 +158,26 @@ class GaussianExtractor(object):
         # self.depth_normals = torch.stack(self.depth_normals, dim=0)
         self.estimate_bounding_sphere()
 
+    @torch.no_grad()
+    def reconstruction_from_raw_depth(self, viewpoint_stack, depth_dir):
+        """
+        Like reconstruction() but loads depth from depth_dir instead of rendering surf_depth.
+        RGB is still rendered from the Gaussian model for TSDF coloring.
+        """
+        self.clean()
+        self.viewpoint_stack = viewpoint_stack
+        for i, viewpoint_cam in tqdm(enumerate(self.viewpoint_stack), desc="reconstruct (raw depth)"):
+            render_pkg = self.render(viewpoint_cam, self.gaussians)
+            self.rgbmaps.append(render_pkg['render'].cpu())
+
+            depth_file = os.path.join(depth_dir, viewpoint_cam.image_name.split(".")[0] + ".npy")
+            depth_np = np.load(depth_file).astype(np.float32)
+            self.depthmaps.append(torch.from_numpy(depth_np).unsqueeze(0))
+
+        self.rgbmaps = torch.stack(self.rgbmaps, dim=0)
+        self.depthmaps = torch.stack(self.depthmaps, dim=0)
+        self.estimate_bounding_sphere()
+
     def estimate_bounding_sphere(self):
         """
         Estimate the bounding sphere given camera pose

@@ -11,7 +11,7 @@ preparation:
 
 assets:
   use_original_guassians: False
-  use_depth: False
+  use_depth: True
   gaussians_iterations: 7_000
   extract_gaussians_objects: True
   extract_table: True
@@ -23,7 +23,7 @@ assets:
   filter_objects_gaussians_environment: True
   filter_mesh_objects: True
   fill_mesh_holes: False
-  mesh_method: "tsdf"  # "tsdf" (default) or "poisson"
+  mesh_method: "tsdf_raw_depth"  # "tsdf" (default), "tsdf_raw_depth", or "poisson"
 
 
 reference_frame:
