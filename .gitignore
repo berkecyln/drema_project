@@ -173,9 +173,11 @@ cython_debug/
 outputs/
 input/
 sample_data/
-#logs/
+logs/
 vahcd_log.txt
 sam3/
+NeuS2/
+TripoSR/
 robot_io/
 run_renderer.sh
 

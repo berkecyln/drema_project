@@ -105,7 +105,7 @@ def fetchTxtPly(cameras):
         points = np.dot(R, points.T).T + T
 
         #sample random points
-        idx = np.random.choice(points.shape[0], min(100, len(points)), replace=False)
+        idx = np.random.choice(points.shape[0], min(1000, len(points)), replace=False)
 
         scene_points.append(points[idx])
         scene_colors.append(colors[idx])

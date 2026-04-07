@@ -13,6 +13,9 @@ Basic run:
 
 Postprocessed run (outlier removel and voxel downsampling):
     python drema/utils/pointcloud_aggregation.py --input input/task_parallel_20260119_173115
+
+Save aggregated cloud to disk:
+    python drema/utils/pointcloud_aggregation.py --input input/task_parallel_20260119_173115
 """
 
 def read_pose_file(path, separator=" "):
@@ -113,7 +116,15 @@ def unproject_depth(depth, K):
     points_cam = np.vstack((x, y, z)).T
     return points_cam, valid
 
-def aggregate_pointcloud(data_dir, depth_folder="depth_scaled", voxel_size=0.005, depth_scale=1.0, max_depth=2.0, remove_outliers=True):
+def aggregate_pointcloud(
+    data_dir,
+    depth_folder="depth_scaled",
+    voxel_size=0.005,
+    depth_scale=1.0,
+    max_depth=2.0,
+    remove_outliers=True,
+    visualize=True,
+):
     print(f"Scanning directory: {data_dir}")
     samples = get_files(data_dir, depth_folder)
     print(f"Found {len(samples)} aligned frames.")
@@ -181,10 +192,18 @@ def aggregate_pointcloud(data_dir, depth_folder="depth_scaled", voxel_size=0.005
     else:
         print("Skipping outlier removal.")
 
-    print("Visualizing... (Close window to exit)")
-    o3d.visualization.draw_geometries([global_pcd, coord_frame], 
-                                      window_name="Aggregated Point Cloud",
-                                      width=1024, height=768)
+    output_path = os.path.join(data_dir, "aggregated_pointcloud.ply")
+    ok = o3d.io.write_point_cloud(output_path, global_pcd)
+    if ok:
+        print(f"Saved aggregated point cloud to: {output_path}")
+    else:
+        print(f"Failed to save point cloud to: {output_path}")
+
+    if visualize:
+        print("Visualizing... (Close window to exit)")
+        o3d.visualization.draw_geometries([global_pcd, coord_frame], 
+                                          window_name="Aggregated Point Cloud",
+                                          width=1024, height=768)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Aggregate RGB-D frames into a single World-Frame Point Cloud.")
@@ -193,6 +212,7 @@ if __name__ == "__main__":
     parser.add_argument("--voxel", type=float, default=0.002, help="Voxel size for downsampling (m). Set to 0 to disable.")
     parser.add_argument("--max_depth", type=float, default=1.5, help="Ignore points further than this (m)")
     parser.add_argument("--no_outliers", action="store_true", help="Disable statistical outlier removal")
+    parser.add_argument("--no_vis", action="store_true", help="Disable Open3D visualization window")
     
     args = parser.parse_args()
     
@@ -200,4 +220,11 @@ if __name__ == "__main__":
         print(f"Error: Directory {args.input} does not exist.")
         exit(1)
         
-    aggregate_pointcloud(args.input, args.depth_folder, args.voxel, max_depth=args.max_depth, remove_outliers=not args.no_outliers)
+    aggregate_pointcloud(
+        args.input,
+        args.depth_folder,
+        args.voxel,
+        max_depth=args.max_depth,
+        remove_outliers=not args.no_outliers,
+        visualize=not args.no_vis,
+    )
