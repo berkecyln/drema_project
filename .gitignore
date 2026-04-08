@@ -181,4 +181,6 @@ TripoSR/
 robot_io/
 run_renderer.sh
 
+CLAUDE.md
+
 debug/
