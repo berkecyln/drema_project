@@ -1,149 +1,62 @@
-# DreMa
+# DreMa Freiburg Extension
 
-This is the official implementation of the paper: 
+This is a fork of [DreMa (ICLR 2025)](https://dreamtomanipulate.github.io/) developed as part of a master's thesis at the **University of Freiburg**.
 
-[**Dream to Manipulate: Compositional World Models Empowering Robot Imitation Learning with Imagination**](https://dreamtomanipulate.github.io/) <bR>
-Leonardo Barcellona, Andrii Zadaianchuk, Davide Allegro, Samuele Papa, Stefano Ghidoni, Efstratios Gavves <br>
-[ICLR 2025](https://iclr.cc/)
+> For the original DreMa codebase readme see [Original README](docs/original_drema_instructions.md).
 
-![](assets/media/Simulation_and_rendering.gif)
+**Thesis goal:** Extend DreMa towards articulated object manipulation and deploy the full pipeline in a real robot lab environment using a Franka Emika Panda with a wrist-mounted RealSense D435.
 
-If you find this code useful in your research, please consider citing the paper:
+- **Robot control:** [`robot_io`](https://github.com/acl21/robot_io)  see `/robot/` directory. All camera interfacing and robot control goes through robot_io.
 
-```
-@inproceedings{
-    barcellona2025dream,
-    title={Dream to Manipulate: Compositional World Models Empowering Robot Imitation Learning with Imagination},
-    author={Leonardo Barcellona and Andrii Zadaianchuk and Davide Allegro and Samuele Papa and Stefano Ghidoni and Efstratios Gavves},
-    booktitle={The Thirteenth International Conference on Learning Representations},
-    year={2025},
-    url={https://openreview.net/forum?id=3RSLW9YSgk}
-}
-```
+## Extensions & Improvements
 
-## Installation
-git clone --recursive https://github.com/leobarcellona/drema_code.git
+### Real-world data collection (`data_gather_robot.py`)
+Automated data collection script for the Franka Panda, written from scratch. Supports multiple movement patterns: Bézier arch, orbit, line-scan, and random-pose trajectories. Handles camera–robot calibration, pose recording in DreMa format, and depth saving.
 
-**Note:** if you have newer versions of cuda >12 please refer to [newer setup documnetation](newer_setup.md).
+### Camera intrinsics fixed
+The original codebase computed intrinsics from image width and height and assumed no distortion and a centered lens. Changed to read intrinsics directly from the recorded pose files, which contain the calibrated `K` matrix from the actual sensor. Principal point and focal lengths now reflect the real camera, including crop and resize corrections.
 
-Install torch (1.8.1 with CUDA 11.1 is used in the paper, but you can use other versions e.g. 2.1 cuda 11.8)
+### Lens distortion correction
+Added `undistort_data.py` to apply full radial+tangential distortion correction to RGB and depth before processing.
+
+### Segmentation: SAM3 backend added
+Integrated Meta's [SAM3](https://github.com/facebookresearch/sam2) (video foundation model) and [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO)+[SAM](https://github.com/facebookresearch/segment-anything) as segmentation backends. The original paper used DEVA. Selectable via `configs/segmentation.yaml`.
+
+### Point cloud aggregation
+Built a pipeline to aggregate all depth frames from a capture session into a single dense reference point cloud. Used as ground-truth geometry for quantitative mesh evaluation and debugging.
+
+## Mesh Quality Research
+
+A significant part of this work investigates improving mesh extraction quality. The core problem: the wrist-mounted camera never observes object bottoms, resulting in open-bottom meshes with poor quality shapes for simulation.
+
+Six approaches were tried and evaluated quantitatively using bidirectional Chamfer distance against an aggregated reference point cloud:
+
+| Approach | Status | Finding |
+|---|---|---|
+| `fill_holes()` (Open3D) | Abandoned | No effect , missing bottom is absent geometry, not a bounded hole |
+| Poisson reconstruction | Abandoned | One-sided normals extrapolate a skirt, not a bottom cap |
+| [NeuS2](https://github.com/19reborn/NeuS2) neural SDF | Abandoned | Top-only cameras collapse the SDF to a flat pancake |
+| [SAM3D](https://github.com/facebookresearch/sam3) | On hold | Requires 32GB VRAM minimum |
+| [TripoSR](https://github.com/VAST-AI-Research/TripoSR) | On hold | Camera always at 45°+ elevation; TripoSR interprets this as a tent shape. Needs low-elevation frames |
+| **Raw sensor depth TSDF** | **Active** | Bypass GS-rendered depth, feed raw RealSense depth into TSDF directly. 3x precision improvement confirmed via Chamfer evaluation |
+
+Full notes, pipeline diagrams, implementation details, and per-object evaluation tables: [`mesh_improvement_notes.md`](docs/mesh_improvement_notes.md).
+
+## Main Scripts
+
 ```bash
-
-pip install torch==2.1.1 torchvision==0.16.1 torchaudio==2.1.1 --index-url https://download.pytorch.org/whl/cu118
+python data_gather_robot.py       # collect RGB-D + poses from Franka Panda
+python run_segmentation.py        # generate object masks (SAM3 or GroundingDINO+SAM)
+python create_simulation.py       # extract Gaussians, meshes, URDFs
+python simulate.py                # validate reconstruction interactively
+python generate_new_data.py       # generate augmented training data
+python eval_mesh_quality.py       # quantitative mesh evaluation (Chamfer distance)
 ```
 
-Install the requirements
-```bash
-pip install submodules/simple-knn
-pip install submodules/diff-gaussian-rasterization
-pip install submodules/diff-gaussian-rasterization-depth
-pip install submodules/diff-surfel-rasterization
+---
 
-pip install -r requirements.txt
-```
+## Credits
 
-
-
-## Generate the data for building the simulation
-To generate the data from CoppeliaSim you need to follow the instructions in [COPPELIA.md](COPPELIA.md)
-
-If you want to use your OWN recorded data you need to set them in the following structure:
-```
-task_name
-  |
-  |---images (contains the rgb images of the scene)
-  |     |---0001.png 
-  |     |---0002.png
-  |
-  |---depth_scaled (contains the depth images of the scene)
-  |     |---0001.npy 
-  |     |---0002.npy
-  |
-  |---object_mask (contains the segmentations masks of the scene)
-  |     |---0001.png 
-  |     |---0002.png
-  |
-  |---poses (contains the intrinsics and extrinsics of the objects)
-  |     |---0001.txt
-  |     |---0002.txt
-  |
-  |---labels.txt (contains the <name;label> of the objects)
- ```
-
-The object pose files should follow this format:
-```
-r1 r2 r3 t1
-r4 r5 r6 t2
-r7 r8 r9 t3
-0 0 0 1
-
-fx 0 cx
-0 fy cy
-0 0 1
-```
-where r1-r9 are the rotation matrix, t1-t3 are the translation vector, fx and fy are the focal length and cx and cy are the center of the image all respect to the world frame.
-
-### Sample data
-
-Download the sample simulation data from the following link and extract it to the `data` folder:
-[Sample Data](https://drive.google.com/drive/folders/1h5Jdxo-3VvFj5TU07FqdYlkMzgWLfuYA?usp=sharing)  
-The `slide_block` scene contains the necessary data required by `simulation.py` (stored in the `output` folder).  
-To recreate the data, delete the `output` folder.
-
-## Build the simulation
-
-![](assets/media/framework.png)
-
-Before creating the simulation you need to set the paths in the config files:
-1. set the correct path in configs/config.yaml
-2. (if needed) set the config/training/coppelia_params.yaml file with the correct parameters (e.g use depth images or not, use 2DGS or 3DGS etc.)
-3. ``` python create_simulation.py ```
-
-**Note:**  
-To extract the objects, you must first extract the table to filter the mesh. 
-The code will create assets in the `assets_path`.
-If you encounter issues after modifying the code, we recommend removing the `assets_path` directory and rerunning the process.
-
-
-## Execute simulation
-To execute the simulation, you need to follow the following steps:
-1. Change data and assets paths in config.yaml and simulation/coppelia_simulation.yaml (if needed).
-2. Run the following command to execute the simulation: 
-``` python simulate.py ```
-3. You can visualize and adjust the simulation by modifying the configuration file.  
-   By default, the simulation will execute the given trajectory continuously.  
-   - Press `r` to reset the environment.
-   - Press `q` to quit.
-
-You can visualize the scene from:
-- The camera used to reconstruct the scene (set `visualize_training_cameras=True`).
-- The cameras in the demonstrated trajectory (set `visualize_trajectory_cameras=True`).
-- The PyBullet GUI camera (set `pybullet_camera=True`).
-
-## Extract augmentation data
-
-To extract the augmentation data you need to run ```python generate_new_data.py```. 
-The configuration file used are the same of simulate.py. Data is generated in "generation.generated_data_path" location.
-Be sure to change the flag to save images and enable the different augmentations to generate the data.
-
-You can visualize the generated data by running ```python visualize_new_data.py ```
-
-Notes: for the paper the filter used is radius filter, but here we used Scharr filter for faster generation. 
-If you avoid visualizing the simulation, the generation will be faster.
-
-## Training peract
-To train peract you need to follow the instructions in the original repository and the information in [COPPELIA.md](COPPELIA.md)
-
-<b>Wrist camera:</b> currently, the wrist camera is not correctly rendering. This is caused by the distance of the camera from the guassians. We still need to find a way to fix this issue.
-That is the reason fo using three cameras in the experiments.
-
-# References
-The code is based on the following repositories (thanks to the authors for sharing their code). 
-Please consider citing their work too:
-- [Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/)
-- [2DGS](https://surfsplatting.github.io/)
-- [RLBench](https://sites.google.com/view/rlbench)
-- [PerAct](https://peract.github.io/)
-- [GNFactor](https://github.com/YanjieZe/GNFactor)
-
-The code is intended for research purposes only.
+- Original DreMa: [Barcellona et al., ICLR 2025](https://dreamtomanipulate.github.io/) - University of Amsterdam
+- Robot control and camera interface: [`robot_io`](https://github.com/acl21/robot_io) - Robot Learning Lab, University of Freiburg
+- [3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/), [2DGS](https://surfsplatting.github.io/), [TripoSR](https://github.com/VAST-AI-Research/TripoSR), [NeuS2](https://github.com/19reborn/NeuS2)

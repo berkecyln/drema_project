@@ -87,7 +87,7 @@ def main(cfg: DictConfig) -> None:
 
     experiment_name = f"Experiment_{time.strftime('%Y%m%d-%H%M%S')}"
 
-    assets_manager = AssetsManager(source_path, assets_path, trainer, dataset, optimization, pipeline, gaussians_iterations, mesh_iterations, experiment_name, assets.filter_mesh_objects)
+    assets_manager = AssetsManager(source_path, assets_path, trainer, dataset, optimization, pipeline, gaussians_iterations, mesh_iterations, experiment_name, assets.filter_mesh_objects, assets.fill_mesh_holes, assets.mesh_method)
 
     # Load the data
     assets_manager.load_data()
@@ -107,8 +107,6 @@ def main(cfg: DictConfig) -> None:
     if assets.extract_table:
         # extract the table
         # TODO: extract table even without depth
-        assert assets.use_depth, "Extracting objects requires depth to extract the table in the current implementation"
-        # get first value of the table labels
         table_labels = list(table_labels.values())[0]
         print("================Table Extraction================")
         assets_manager.extract_table(table_labels)

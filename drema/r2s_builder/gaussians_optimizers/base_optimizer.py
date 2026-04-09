@@ -135,11 +135,14 @@ class BaseTrainer:
                     print("\n[ITER {}] Saving Gaussians".format(iteration))
                     self.gaussians_to_save = self.gaussians.clone()
 
-    def extract_mesh(self):
+    def extract_mesh(self, depth_dir=None):
         bg_color = [1, 1, 1] if self.dataset.white_background else [0, 0, 0]
         gaussExtractor = GaussianExtractorDepth(self.gaussians, render_depth, self.pipe, bg_color=bg_color)
         gaussExtractor.gaussians.active_sh_degree = 0
-        gaussExtractor.reconstruction(self.scene.getTrainCameras())
+        if depth_dir is not None:
+            gaussExtractor.reconstruction_from_raw_depth(self.scene.getTrainCameras(), depth_dir)
+        else:
+            gaussExtractor.reconstruction(self.scene.getTrainCameras())
         depth_trunc = (gaussExtractor.radius * 2.0) if self.opt.depth_trunc < 0 else self.opt.depth_trunc
         voxel_size = (depth_trunc / self.opt.mesh_res) if self.opt.voxel_size < 0 else self.opt.voxel_size
         sdf_trunc = 5.0 * voxel_size if self.opt.sdf_trunc < 0 else self.opt.sdf_trunc

@@ -44,7 +44,7 @@ for pose_path in pose_files:
     
     # Optional: If the scene is upside down in the viewer, 
     # uncomment the line below to flip Y and Z axes
-    # c2w[0:3, 1:3] *= -1 
+    c2w[0:3, 1:3] *= -1 
 
     frame_path = f"images/{pose_path.stem}.png"
     

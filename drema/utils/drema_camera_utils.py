@@ -81,9 +81,14 @@ def read_txt_intrinsics(path):
         camera_id = 1
         model_id = 1
         model_name = colmap_loader.CAMERA_MODEL_IDS[model_id].model_name
-        width = given_intrinsics[0,2]*2 # no distortion
-        height = given_intrinsics[1,2]*2
         params = np.array([given_intrinsics[0,0], given_intrinsics[1,1], given_intrinsics[0,2], given_intrinsics[1,2]])
+
+        # Get actual image dimensions from the images folder instead of cx*2/cy*2
+        # (the principal point may not be at the image center for real cameras)
+        images_dir = os.path.join(path, "images")
+        image_files = sorted([f for f in os.listdir(images_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
+        first_image = Image.open(os.path.join(images_dir, image_files[0]))
+        width, height = first_image.size
 
         cameras[camera_id] = colmap_loader.Camera(id=camera_id,
                                     model=model_name,

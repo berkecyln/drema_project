@@ -46,7 +46,7 @@ model:
 pipeline:
   convert_SHs_python: False
   compute_cov3D_python: False
-  depth_ratio: 0.0
+  depth_ratio: 1.0  # FIX: bounded scene, use median depth (was 0.0 = unbounded)
   debug: False
 
 optimization:
@@ -54,7 +54,7 @@ optimization:
   position_lr_init: 0.00016
   position_lr_final: 0.0000016
   position_lr_delay_mult: 0.01
-  position_lr_max_steps: 30_000
+  position_lr_max_steps: 7_000  # FIX: match actual training length (was 30_000)
   feature_lr: 0.0025
   opacity_lr: 0.05
   scaling_lr: 0.005
@@ -70,7 +70,7 @@ optimization:
   densify_until_iter: 15_000
   densify_grad_threshold: 0.0002
   random_background: False
-  
+
   voxel_size: -1.0
   depth_trunc: -1.0
   sdf_trunc: -1.0

@@ -1,6 +1,7 @@
 data:
   # source_path: "/home/ceylanb/DreMa/drema_project/input/gold_data"
-  source_path: "/home/gunnleif/Projects/drema_project/input/linescan"
+  source_path: "/home/gunnleif/Projects/drema/drema_project/input/gold_data_undistort_rawdepth"
+  
   # source_path: "/home/ceylanb/DreMa/drema_project/input/sample_data/slide_block_to_color_target_episode0_start"
   # source_path: "/home/gunnleif/Projects/drema_project/input/sample_data/put_groceries_in_cupboard_episode1_start"
   assets_directory: "output"
@@ -9,6 +10,6 @@ data:
 
 defaults:
   - simulation: real_world_simulation
-  - training: real_world_params
+  - training: real_world_params_fixes
 
 

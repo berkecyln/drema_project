@@ -58,10 +58,19 @@ def loadCam(args, id, cam_info, resolution_scale):
 
     gt_image = resized_image_rgb[:3, ...]
 
+    # Pass principal point (cx, cy) if available; scale them with image resolution
+    cx = getattr(cam_info, 'cx', None)
+    cy = getattr(cam_info, 'cy', None)
+    if cx is not None and orig_w != resolution[0]:
+        cx = cx * resolution[0] / orig_w
+    if cy is not None and orig_h != resolution[1]:
+        cy = cy * resolution[1] / orig_h
+
     return DepthCamera(colmap_id=cam_info.uid, R=cam_info.R, T=cam_info.T,
                   FoVx=cam_info.FovX, FoVy=cam_info.FovY,
                   image=gt_image, gt_alpha_mask=loaded_mask,
-                  image_name=cam_info.image_name, uid=id, data_device=args.data_device, depth=resized_image_depth)
+                  image_name=cam_info.image_name, uid=id, data_device=args.data_device, depth=resized_image_depth,
+                  cx=cx, cy=cy)
 
 
 def cameraList_from_camInfos(cam_infos, resolution_scale, args):

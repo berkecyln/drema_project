@@ -13,10 +13,11 @@ from drema.drema_scene.interactive_gaussian_model import InteractiveGaussianMode
 from drema.r2s_builder.extractors.Urdf import URDFBuilder
 from drema.utils.drema_camera_utils import read_pose_file
 from drema.utils.point_cloud_utils import project_depth
+from drema.gaussian_splatting_utils.mesh_utils import fill_mesh_holes, extract_mesh_poisson
 
 
 class AssetsManager:
-    def __init__(self, source_path, assets_path, optimizer, dataset, opt, pipe, gaussians_iterations, mesh_iterations, experiment_name="Exp_default", filter_mesh_objects=True):
+    def __init__(self, source_path, assets_path, optimizer, dataset, opt, pipe, gaussians_iterations, mesh_iterations, experiment_name="Exp_default", filter_mesh_objects=True, fill_holes=True, mesh_method='tsdf'):
 
         self.source_path = source_path
         self.assets_path = assets_path
@@ -49,6 +50,8 @@ class AssetsManager:
 
         self.experiment_name = experiment_name
         self.filter_mesh_objects = filter_mesh_objects
+        self.fill_holes = fill_holes
+        self.mesh_method = mesh_method
 
         # iterations
         self.gaussians_iterations = gaussians_iterations
@@ -156,9 +159,16 @@ class AssetsManager:
             gs_to_save.save_ply(os.path.join(output_path_ply, str(id) + ".ply"))
         print(f"-----Mesh Extraction for {id}-----") #ADDED
         if extract_mesh:
-            mesh = trainer.extract_mesh()
+            if self.mesh_method == 'poisson':
+                mesh = extract_mesh_poisson(trainer.gaussians, trainer.scene.getTrainCameras(), trainer.opt)
+            elif self.mesh_method == 'tsdf_raw_depth':
+                mesh = trainer.extract_mesh(depth_dir=os.path.join(self.source_path, "depth_scaled"))
+            else:
+                mesh = trainer.extract_mesh()
             if self.filter_mesh_objects:
                 self.filter_mesh(mesh)
+            if self.fill_holes:
+                mesh = fill_mesh_holes(mesh)
             mesh_path = os.path.join(self.assets_path, "meshes")
             os.makedirs(mesh_path, exist_ok=True)
             o3d.io.write_triangle_mesh(os.path.join(mesh_path, str(id) + ".obj"), mesh)
@@ -182,7 +192,14 @@ class AssetsManager:
 
         print("-----Mesh Extraction for Environment-----") #ADDED
         if extract_mesh:
-            mesh = trainer.extract_mesh()
+            if self.mesh_method == 'poisson':
+                mesh = extract_mesh_poisson(trainer.gaussians, trainer.scene.getTrainCameras(), trainer.opt)
+            elif self.mesh_method == 'tsdf_raw_depth':
+                mesh = trainer.extract_mesh(depth_dir=os.path.join(self.source_path, "depth_scaled"))
+            else:
+                mesh = trainer.extract_mesh()
+            if self.fill_holes:
+                mesh = fill_mesh_holes(mesh)
             mesh_path = os.path.join(self.assets_path, "meshes")
             os.makedirs(mesh_path, exist_ok=True)
             o3d.io.write_triangle_mesh(os.path.join(mesh_path, "environment.obj"), mesh)
