@@ -10,8 +10,8 @@ This is a fork of [DreMa (ICLR 2025)](https://dreamtomanipulate.github.io/) deve
 
 ## Extensions & Improvements
 
-### Real-world data collection (`data_gather_robot.py`)
-Automated data collection script for the Franka Panda, written from scratch. Supports multiple movement patterns: Bézier arch, orbit, line-scan, and random-pose trajectories. Handles camera–robot calibration, pose recording in DreMa format, and depth saving.
+### Real-world data collection (`robot_scanner/`)
+Automated data collection for the Franka Panda, written from scratch. Supports multiple movement patterns: Bézier arch, orbit, line-scan, and random-pose trajectories. Handles camera–robot calibration, pose recording in DreMa format, and depth saving.
 
 ### Camera intrinsics fixed
 The original codebase computed intrinsics from image width and height and assumed no distortion and a centered lens. Changed to read intrinsics directly from the recorded pose files, which contain the calibrated `K` matrix from the actual sensor. Principal point and focal lengths now reflect the real camera, including crop and resize corrections.
@@ -45,12 +45,12 @@ Full notes, pipeline diagrams, implementation details, and per-object evaluation
 ## Main Scripts
 
 ```bash
-python data_gather_robot.py       # collect RGB-D + poses from Franka Panda
+python robot_scanner/run.py       # collect RGB-D + poses from Franka Panda
 python run_segmentation.py        # generate object masks (SAM3 or GroundingDINO+SAM)
 python create_simulation.py       # extract Gaussians, meshes, URDFs
 python simulate.py                # validate reconstruction interactively
 python generate_new_data.py       # generate augmented training data
-python eval_mesh_quality.py       # quantitative mesh evaluation (Chamfer distance)
+python tools/eval_mesh_quality.py # quantitative mesh evaluation (Chamfer distance)
 ```
 
 ---
