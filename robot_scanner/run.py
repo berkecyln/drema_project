@@ -16,6 +16,7 @@ from robot_scanner.movements.arch import ArchMover
 from robot_scanner.movements.orbit import OrbitMover
 from robot_scanner.movements.line_scan import LineScanMover
 from robot_scanner.movements.random_pose import RandomMover
+from robot_scanner.movements.grid_scan import GridScanMover
 
 DREMA_PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -24,6 +25,7 @@ MOVERS = {
     "orbit": OrbitMover,
     "line_scan": LineScanMover,
     "random_pose": RandomMover,
+    "grid_scan": GridScanMover,
 }
 
 

@@ -34,11 +34,13 @@ class BaseMover(ABC):
         os.makedirs(task_dir, exist_ok=True)
 
         print(f"Moving to start...")
-        self.robot.move_cart_pos_abs_lin(path[0][0], path[0][1])
+        # self.robot.move_cart_pos_abs_lin(path[0][0], path[0][1])
+        self.robot.move_cart_pos_abs_ptp(path[0][0], path[0][1])
         time.sleep(2)
 
         for idx, (pos, orn) in enumerate(path, 1):
-            self.robot.move_cart_pos_abs_lin(pos, orn)
+            # self.robot.move_cart_pos_abs_lin(pos, orn)
+            self.robot.move_cart_pos_abs_ptp(pos, orn)
             time.sleep(self.STEP_SLEEP)
             self._capture(idx, task_dir)
 
