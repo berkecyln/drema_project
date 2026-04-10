@@ -1,6 +1,8 @@
 import sys
 import os
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))  # resolve before chdir
+
 ROBOT_IO_PATH = "/home/ceylanb/robot/robot_io"  # set this for your machine
 if ROBOT_IO_PATH not in sys.path:
     sys.path.insert(0, ROBOT_IO_PATH)
@@ -18,7 +20,8 @@ from robot_scanner.movements.line_scan import LineScanMover
 from robot_scanner.movements.random_pose import RandomMover
 from robot_scanner.movements.grid_scan import GridScanMover
 
-DREMA_PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DREMA_PROJECT_PATH = os.path.dirname(SCRIPT_DIR)
+CONFIGS_PATH = os.path.join(SCRIPT_DIR, "configs")
 
 MOVERS = {
     "arch": ArchMover,
@@ -29,7 +32,7 @@ MOVERS = {
 }
 
 
-@hydra.main(config_path="configs", config_name="data_gathering", version_base=None)
+@hydra.main(config_path=CONFIGS_PATH, config_name="data_gathering", version_base=None)
 def main(cfg: DictConfig):
     robot = cam_manager = None
     try:
