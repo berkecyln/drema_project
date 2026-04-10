@@ -1,0 +1,19 @@
+type: arch
+num_waypoints: 300
+flip_orientation: false
+arch_type: parallel  # parallel | skewed_clockwise | skewed_counterclockwise
+
+arch_parallel:
+  start_offset:  [0.0, -0.4, -0.1]
+  end_offset:    [0.0,  0.3, -0.1]
+  corner_offset: [-0.1, 0.0, 0.45]
+
+arch_skewed_counterclockwise:
+  start_offset:  [0.1, -0.3, -0.1]
+  end_offset:    [-0.1, 0.3, -0.1]
+  corner_offset: [-0.1, 0.0, 0.45]
+
+arch_skewed_clockwise:
+  start_offset:  [0.1,  0.3, -0.1]
+  end_offset:    [-0.1, -0.4, -0.1]
+  corner_offset: [-0.1, 0.0, 0.45]

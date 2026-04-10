@@ -1,0 +1,7 @@
+type: line_scan
+num_waypoints: 300
+
+line_scan:
+  start_point: [0.30, -0.35, 0.60]
+  end_point:   [0.30,  0.20, 0.60]
+  rot_deg: null

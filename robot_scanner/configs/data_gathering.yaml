@@ -1,0 +1,12 @@
+defaults:
+  - robot: panda_franky_interface_policy
+  - cams: camera_manager
+  - movement: arch
+  - _self_
+
+hydra:
+  searchpath:
+    - file:///home/ceylanb/robot/robot_io/robot_io/conf
+
+output_dir: /home/ceylanb/DreMa/drema_project/input
+calibration_file: /home/ceylanb/robot/robot_io/robot_io/calibration/calibration_files/panda_realsenseD435_T_tcp_cam.npy
