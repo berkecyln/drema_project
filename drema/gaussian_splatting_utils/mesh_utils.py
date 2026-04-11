@@ -79,6 +79,65 @@ def fill_mesh_holes(mesh):
     return filled.to_legacy()
 
 
+def fit_box_mesh(points: np.ndarray, table_top_z: float, shape: str = 'box') -> o3d.geometry.TriangleMesh:
+    """Fit a watertight box mesh to a point cloud and snap its bottom to the table surface.
+
+    Args:
+        points: (N, 3) array of 3D points in world coordinates.
+        table_top_z: Z coordinate of the table surface (bottom of the object).
+        shape: 'box' for a general rectangular box, 'cube' to force equal side lengths.
+
+    Returns:
+        Watertight TriangleMesh of the fitted box.
+    """
+    # discard points at or below the table surface
+    points = points[points[:, 2] > table_top_z + 0.005]
+
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(points)
+
+    # voxel downsample for speed
+    pcd = pcd.voxel_down_sample(voxel_size=0.003)
+
+    # remove statistical outliers
+    pcd, _ = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
+
+    # keep only the largest cluster
+    labels = np.array(pcd.cluster_dbscan(eps=0.02, min_points=10))
+    if labels.max() < 0:
+        raise ValueError("DBSCAN found no clusters in object point cloud.")
+    main_label = np.bincount(labels[labels >= 0]).argmax()
+    pcd = pcd.select_by_index(np.where(labels == main_label)[0])
+
+    if len(pcd.points) < 10:
+        raise ValueError(f"Too few inlier points ({len(pcd.points)}) to fit a box.")
+
+    # fit oriented bounding box
+    obb = pcd.get_oriented_bounding_box()
+    extents = np.array(obb.extent)
+
+    if shape == 'cube':
+        # camera never sees the bottom, so the smallest OBB extent (height) is underestimated.
+        # use the mean of the two largest extents (horizontal face dimensions) as the cube side.
+        side = np.mean(np.sort(extents)[1:])
+        extents = np.array([side, side, side])
+
+    w, h, d = extents
+
+    # build axis-aligned box, center at origin, then apply OBB rotation and translation
+    mesh = o3d.geometry.TriangleMesh.create_box(width=w, height=h, depth=d)
+    mesh.translate(-np.array([w / 2, h / 2, d / 2]))  # center at origin
+    mesh.rotate(obb.R, center=np.zeros(3))             # orient to match OBB
+    mesh.translate(obb.center)                          # move to OBB world center
+
+    # snap bottom face to table surface
+    bottom_z = np.min(np.asarray(mesh.vertices)[:, 2])
+    mesh.translate([0, 0, table_top_z - bottom_z])
+
+    mesh.compute_vertex_normals()
+    return mesh
+
+
 def to_cam_open3d(viewpoint_stack):
     camera_traj = []
     for i, viewpoint_cam in enumerate(viewpoint_stack):

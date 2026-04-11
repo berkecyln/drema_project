@@ -48,19 +48,21 @@ Six approaches were tried and evaluated quantitatively using bidirectional Chamf
 | [NeuS2](https://github.com/19reborn/NeuS2) neural SDF | Abandoned | Top-only cameras collapse the SDF to a flat pancake |
 | [SAM3D](https://github.com/facebookresearch/sam3) | On hold | Requires 32GB VRAM minimum |
 | [TripoSR](https://github.com/VAST-AI-Research/TripoSR) | On hold | Camera always at 45°+ elevation; TripoSR interprets this as a tent shape. Needs low-elevation frames |
-| **Raw sensor depth TSDF** | **Active** | Bypass GS-rendered depth, feed raw RealSense depth into TSDF directly. 3x precision improvement confirmed via Chamfer evaluation |
+| **Raw sensor depth TSDF** | Active | Bypass GS-rendered depth, feed raw RealSense depth into TSDF directly. 3x precision improvement confirmed via Chamfer evaluation |
+| **Geometric model fitting** | **Active** | Fit a watertight primitive (box/cube) to the filtered Gaussian point cloud. Solves the open-bottom problem entirely. Shape type set per-object via `shape` field in `visual_prompts.yaml`. |
 
 Full notes, pipeline diagrams, implementation details, and per-object evaluation tables: [`mesh_improvement_notes.md`](docs/mesh_improvement_notes.md).
 
 ## Main Scripts
 
 ```bash
-python robot_scanner/run.py       # collect RGB-D + poses from Franka Panda
-python run_segmentation.py        # generate object masks (SAM3 video/image or GroundingDINO+SAM)
-python create_simulation.py       # extract Gaussians, meshes, URDFs
-python simulate.py                # validate reconstruction interactively
-python generate_new_data.py       # generate augmented training data
-python tools/eval_mesh_quality.py # quantitative mesh evaluation (Chamfer distance)
+python robot_scanner/run.py         # collect RGB-D + poses from Franka Panda
+python run_segmentation.py          # generate object masks (SAM3 video/image or GroundingDINO+SAM)
+python create_simulation.py         # extract Gaussians, meshes, URDFs
+# [TODO] record_trajectory.py       # record robot demonstration as pickle for simulate.py
+python simulate.py                  # validate reconstruction interactively
+python generate_new_data.py         # generate augmented training data
+python tools/eval_mesh_quality.py   # quantitative mesh evaluation (Chamfer distance)
 ```
 
 ---

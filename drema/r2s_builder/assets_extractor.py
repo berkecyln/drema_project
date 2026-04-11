@@ -6,6 +6,7 @@ import numpy as np
 import scipy
 import torch
 import open3d as o3d
+import yaml
 
 from PIL import Image
 
@@ -13,7 +14,7 @@ from drema.drema_scene.interactive_gaussian_model import InteractiveGaussianMode
 from drema.r2s_builder.extractors.Urdf import URDFBuilder
 from drema.utils.drema_camera_utils import read_pose_file
 from drema.utils.point_cloud_utils import project_depth
-from drema.gaussian_splatting_utils.mesh_utils import fill_mesh_holes, extract_mesh_poisson
+from drema.gaussian_splatting_utils.mesh_utils import fill_mesh_holes, extract_mesh_poisson, fit_box_mesh
 
 
 class AssetsManager:
@@ -159,16 +160,24 @@ class AssetsManager:
             gs_to_save.save_ply(os.path.join(output_path_ply, str(id) + ".ply"))
         print(f"-----Mesh Extraction for {id}-----") #ADDED
         if extract_mesh:
-            if self.mesh_method == 'poisson':
-                mesh = extract_mesh_poisson(trainer.gaussians, trainer.scene.getTrainCameras(), trainer.opt)
-            elif self.mesh_method == 'tsdf_raw_depth':
-                mesh = trainer.extract_mesh(depth_dir=os.path.join(self.source_path, "depth_scaled"))
+            if self.mesh_method == 'geometric_box':
+                # fit box to filtered Gaussian centers — already clean, no mask bleed
+                points = gs_to_save.get_xyz.cpu().detach().numpy()
+                table_top_z = np.max(self.hull_points[:, 2])
+                shape = self._get_object_shape(id)
+                print(f"-----Fitting box mesh from {len(points)} Gaussian centers, shape={shape}, table_top_z={table_top_z:.4f}-----")
+                mesh = fit_box_mesh(points, table_top_z, shape=shape)
             else:
-                mesh = trainer.extract_mesh()
-            if self.filter_mesh_objects:
-                self.filter_mesh(mesh)
-            if self.fill_holes:
-                mesh = fill_mesh_holes(mesh)
+                if self.mesh_method == 'poisson':
+                    mesh = extract_mesh_poisson(trainer.gaussians, trainer.scene.getTrainCameras(), trainer.opt)
+                elif self.mesh_method == 'tsdf_raw_depth':
+                    mesh = trainer.extract_mesh(depth_dir=os.path.join(self.source_path, "depth_scaled"))
+                else:
+                    mesh = trainer.extract_mesh()
+                if self.filter_mesh_objects:
+                    self.filter_mesh(mesh)
+                if self.fill_holes:
+                    mesh = fill_mesh_holes(mesh)
             mesh_path = os.path.join(self.assets_path, "meshes")
             os.makedirs(mesh_path, exist_ok=True)
             o3d.io.write_triangle_mesh(os.path.join(mesh_path, str(id) + ".obj"), mesh)
@@ -271,6 +280,18 @@ class AssetsManager:
 
         # Create a Delaunay triangulation
         self.delaunay = scipy.spatial.Delaunay(self.hull_points)
+
+    def _get_object_shape(self, object_id: int) -> str:
+        """Read shape type for object_id from visual_prompts.yaml. Defaults to 'box'."""
+        prompts_path = os.path.join(self.source_path, "visual_prompts.yaml")
+        if not os.path.exists(prompts_path):
+            return 'box'
+        with open(prompts_path) as f:
+            prompts = yaml.safe_load(f)
+        for obj in prompts.get("objects", []):
+            if obj.get("id") == object_id:
+                return obj.get("shape", "box")
+        return 'box'
 
     def filter_mesh(self, mesh):
         # Get points from the original point cloud

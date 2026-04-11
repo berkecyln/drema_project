@@ -23,7 +23,7 @@ assets:
   filter_objects_gaussians_environment: True
   filter_mesh_objects: True
   fill_mesh_holes: False
-  mesh_method: "tsdf_raw_depth"  # "tsdf" (default), "tsdf_raw_depth", or "poisson"
+  mesh_method: "geometric_box"  # "tsdf" (default), "tsdf_raw_depth", "poisson", or "geometric_box"
 
 
 reference_frame:
