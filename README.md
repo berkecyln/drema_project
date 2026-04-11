@@ -22,6 +22,16 @@ Added `undistort_data.py` to apply full radial+tangential distortion correction 
 ### Segmentation: SAM3 backend added
 Integrated Meta's [SAM3](https://github.com/facebookresearch/sam2) (video foundation model) and [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO)+[SAM](https://github.com/facebookresearch/segment-anything) as segmentation backends. The original paper used DEVA. Selectable via `configs/segmentation.yaml`.
 
+Three segmentation methods are available (`method` field in config):
+- `grounded_sam`: GroundingDINO + SAM, text-prompted, per-frame
+- `sam3`: SAM3 image model, text-prompted, per-frame
+- `sam3_video`: SAM3 video tracker, **visual-prompted**, propagates across all frames
+
+The `sam3_video` Workflow:
+1. Draw bounding boxes interactively on the middle frame (change this frame if its not good): `python tools/pick_visual_prompts.py`
+2. Optionally add `sam_text` to any entry in `visual_prompts.yaml` to use a more descriptive tracking text while keeping the DreMa-compatible `label` (e.g. `label: table`, `sam_text: white table surface`)
+3. Run segmentation: `python run_segmentation.py`
+
 ### Point cloud aggregation
 Built a pipeline to aggregate all depth frames from a capture session into a single dense reference point cloud. Used as ground-truth geometry for quantitative mesh evaluation and debugging.
 
@@ -46,7 +56,7 @@ Full notes, pipeline diagrams, implementation details, and per-object evaluation
 
 ```bash
 python robot_scanner/run.py       # collect RGB-D + poses from Franka Panda
-python run_segmentation.py        # generate object masks (SAM3 or GroundingDINO+SAM)
+python run_segmentation.py        # generate object masks (SAM3 video/image or GroundingDINO+SAM)
 python create_simulation.py       # extract Gaussians, meshes, URDFs
 python simulate.py                # validate reconstruction interactively
 python generate_new_data.py       # generate augmented training data
