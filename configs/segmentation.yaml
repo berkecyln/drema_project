@@ -1,12 +1,12 @@
 # Segmentation pipeline configuration for DreMa dataset preparation
 
 # Segmentation method: "grounded_sam" or "sam3"
-method: "sam3"
+method: "sam3_video"
 
 # Input/output paths
 input_dir: "input"
 # Folders to process; leave empty to process all subdirectories in input_dir
-folders: ["line_scan","orbit","parallel"]
+folders: ["new_parallel"]
 output_subdir: "object_mask"
 
 # Debug visualization
@@ -45,11 +45,25 @@ sam3:
     #- "yellow lego"
   
   
-  table_prompt: "surface"
+  table_prompt: "countertop"
   
   # Segmentation thresholds
   threshold: 0.5  # Instance detection
   mask_threshold: 0.5  # Mask binarization
+
+# SAM3 video tracking configuration
+sam3_video:
+  model_id: "facebook/sam3"
+  # Labels to track. 'table' gets id=50, all others get id=1,2,...
+  labels:
+    - "table"
+    - "red cube"
+    #- "green cup"
+    #- "orange cup"
+    #- "yellow lego"
+  # Path to visual_prompts.yaml; if null, looks for <input_folder>/visual_prompts.yaml
+  visual_prompts_file: null
+  propagation_direction: "both"  # "forward", "backward", or "both"
 
 device: null
 background_id: 255  # Background pixel value

@@ -11,6 +11,12 @@ Note : Change the segmenter method and parameters in configs/segmentation.yaml
 import os
 import sys
 from pathlib import Path
+
+# Use system gcc for Triton JIT compilation — conda's cross-compiler fails on Arch Linux
+# (incompatible with newer glibc .relr.dyn sections). Must be set before any triton import.
+os.environ["CC"] = "gcc"  # Force system gcc — conda's cross-compiler fails on Arch Linux with newer glibc
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "sam3"))
 from PIL import Image
 import numpy as np
 from tqdm import tqdm
@@ -120,13 +126,19 @@ def create_grounded_segmenter(cfg: DictConfig):
 def create_sam3_segmenter(cfg: DictConfig):
     """Initialize SAM 3 text-based segmenter."""
     from segmentation.sam3_segmenter import SAM3Segmenter
-    
+
     return SAM3Segmenter(
         model_id=cfg.sam3.model_id,
         device=cfg.device,
         threshold=cfg.sam3.threshold,
         mask_threshold=cfg.sam3.mask_threshold,
     )
+
+
+def create_sam3_video_segmenter(cfg: DictConfig):
+    """Initialize SAM3 video tracking segmenter."""
+    from segmentation.sam3_video_segmenter import SAM3VideoSegmenter
+    return SAM3VideoSegmenter(device=cfg.device)
 
 
 def process_image_grounded(
@@ -154,6 +166,72 @@ def process_image_sam3(
         table_prompt=cfg.sam3.table_prompt,
         background_id=cfg.background_id,
     )
+
+
+def load_visual_prompts(input_dir: Path, cfg: DictConfig) -> List[dict]:
+    """Load visual_prompts.yaml for a given input folder."""
+    import yaml
+
+    prompts_path = OmegaConf.select(cfg, "sam3_video.visual_prompts_file")
+    if prompts_path:
+        prompts_path = Path(prompts_path)
+    else:
+        prompts_path = input_dir / "visual_prompts.yaml"
+
+    if not prompts_path.exists():
+        raise FileNotFoundError(
+            f"No visual_prompts.yaml found at {prompts_path}\n"
+            f"Run: bash run_renderer.sh python tools/pick_visual_prompts.py {input_dir} --labels table \"<object>\""
+        )
+
+    with open(prompts_path) as f:
+        data = yaml.safe_load(f)
+    prompt_frame = data.get("prompt_frame", 0)
+    return data["objects"], prompt_frame
+
+
+def process_folder_sam3_video(input_dir: Path, segmenter, cfg: DictConfig):
+    """Process an entire folder with SAM3 video tracking (one session per folder)."""
+    images_dir = input_dir / "images"
+    output_dir = input_dir / cfg.output_subdir
+
+    if not images_dir.exists():
+        print(f"  Skipping {input_dir.name}: no images/ folder")
+        return
+
+    visual_prompts, prompt_frame = load_visual_prompts(input_dir, cfg)
+    print(f"  Loaded {len(visual_prompts)} visual prompt(s) from visual_prompts.yaml (prompt frame: {prompt_frame})")
+    for p in visual_prompts:
+        print(f"    id={p['id']}  label='{p['label']}'  box={p['box_xywh']}")
+
+    output_dir.mkdir(exist_ok=True)
+
+    debug_dir = None
+    if cfg.get("save_debug_vis", False):
+        debug_dir = input_dir / cfg.get("debug_subdir", "debug_vis")
+        debug_dir.mkdir(exist_ok=True)
+
+    frame_masks, labels = segmenter.process_folder(
+        images_dir=images_dir,
+        visual_prompts=visual_prompts,
+        background_id=cfg.background_id,
+        propagation_direction=OmegaConf.select(cfg, "sam3_video.propagation_direction", default="both"),
+        prompt_frame=prompt_frame,
+    )
+
+    for filename, mask in tqdm(frame_masks.items(), desc=f"  {input_dir.name} (saving)", leave=False):
+        out_name = Path(filename).stem + ".png"
+        save_mask(mask, output_dir / out_name)
+
+        if debug_dir is not None:
+            image = Image.open(images_dir / filename).convert("RGB")
+            debug_vis = segmenter.create_debug_visualization(
+                image, mask, labels, background_id=cfg.background_id
+            )
+            Image.fromarray(debug_vis).save(debug_dir / out_name)
+
+    save_labels(labels, input_dir / "labels.txt")
+    print(f"  Processed {len(frame_masks)} frames, labels: {labels}")
 
 
 def process_input_folder(
@@ -254,18 +332,26 @@ def main(cfg: DictConfig) -> None:
         process_fn = process_image_sam3
         print(f"Using SAM 3 model: {cfg.sam3.model_id}")
         print(f"using prompts: {cfg.sam3.object_prompts}")
-        
+
+    elif method == "sam3_video":
+        segmenter = create_sam3_video_segmenter(cfg)
+        print(f"Using SAM3 video tracking (visual prompts from visual_prompts.yaml per folder)")
+
     else:
-        print(f"Error: Unknown method '{method}'. Use 'grounded_sam' or 'sam3'")
+        print(f"Error: Unknown method '{method}'. Use 'grounded_sam', 'sam3', or 'sam3_video'")
         return
-    
+
     # Process each folder
     print("\n" + "=" * 70)
     print("Processing folders...")
     print("=" * 70)
-    
-    for input_dir in input_folders:
-        process_input_folder(input_dir, segmenter, cfg, process_fn)
+
+    if method == "sam3_video":
+        for input_dir in input_folders:
+            process_folder_sam3_video(input_dir, segmenter, cfg)
+    else:
+        for input_dir in input_folders:
+            process_input_folder(input_dir, segmenter, cfg, process_fn)
     
     print("=" * 70)
     print("Segmentation complete!")
