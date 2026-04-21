@@ -47,10 +47,12 @@ robot:
   robot_urdf: "./assets/franka_panda/panda.urdf"
   robot_gaussians_dir: "./assets/robot_surf_gaussians"
   connected_joints: [-1, 0, 1, 2, 3, 4, 5, 6, 7, 9, 8]
-  initial_position: [+3.0895e-01, 0.0000e+00, -8.2002e-01]
+  # initial_position: [+3.0895e-01, 0.0000e+00, -8.2002e-01]
+  initial_position: [0.0, 0.0, 0.0]
   initial_orientation: [0, 0, 0]
   initial_gripper_joint_positions: [0.04, 0.04]
-  initial_joint_positions: [2.050e-07, 0.1745, 1.894e-06, -0.8727, -6.537e-06, 1.2217, 0.7854]
+  # initial_joint_positions: [2.050e-07, 0.1745, 1.894e-06, -0.8727, -6.537e-06, 1.2217, 0.7854]
+  initial_joint_positions: [-0.017792, -0.760124, 0.019783, -2.342050, 0.029841, 1.541194, 0.753449]
   end_effector_rotation: [0, 0, 45] # xyz euler angles in degrees
   right_finger_index: 8
   left_finger_index: 9

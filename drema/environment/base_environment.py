@@ -97,7 +97,8 @@ class Environment:
         """
         if self.visualize:
             self.client.connect(pybullet.GUI)
-            self.client.resetDebugVisualizerCamera(3, 90, -30, [0.0, 2.0, -0.0])
+            # self.client.resetDebugVisualizerCamera(3, 90, -30, [0.0, 2.0, -0.0])
+            self.client.resetDebugVisualizerCamera(1.5, 45, -30, [0.3, 0.0, 0.3])
         else:
             self.client.connect(pybullet.DIRECT)
 
