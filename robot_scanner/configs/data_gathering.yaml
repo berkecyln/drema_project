@@ -1,7 +1,7 @@
 defaults:
   - robot: panda_franky_interface_policy
   - cams: camera_manager
-  - movement: arch
+  - movement: gello_replay
   - _self_
 
 hydra:

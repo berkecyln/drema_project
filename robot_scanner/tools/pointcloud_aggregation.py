@@ -12,10 +12,9 @@ Basic run:
     python drema/utils/pointcloud_aggregation.py --input input/task_parallel_20260119_173115 --voxel 0.0 --no_outliers
 
 Postprocessed run (outlier removel and voxel downsampling):
-    python drema/utils/pointcloud_aggregation.py --input input/task_parallel_20260119_173115
+    python drema/robot_scanner/tools/pointcloud_aggregation.py --input input/task_parallel_20260119_173115
 
-Save aggregated cloud to disk:
-    python drema/utils/pointcloud_aggregation.py --input input/task_parallel_20260119_173115
+
 """
 
 def read_pose_file(path, separator=" "):

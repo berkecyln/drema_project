@@ -1,0 +1,6 @@
+type: gello_replay
+
+trajectory_file:
+
+n_frames: 300
+# Number of waypoints to subsample from the trajectory.
