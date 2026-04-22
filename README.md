@@ -7,11 +7,14 @@ This is a fork of [DreMa (ICLR 2025)](https://dreamtomanipulate.github.io/) deve
 **Thesis goal:** Extend DreMa towards articulated object manipulation and deploy the full pipeline in a real robot lab environment using a Franka Emika Panda with a wrist-mounted RealSense D435.
 
 - **Robot control:** [`robot_io`](https://github.com/acl21/robot_io)  see `/robot/` directory. All camera interfacing and robot control goes through robot_io.
+- **Trajectory recording:** [GELLO](https://wuphilipp.github.io/gello_software/) teleoperation device used to record manipulation demonstrations. Joint positions saved as `.npy`, converted to DreMa `.pkl` format via `tools/convert_trajectory.py`.
 
 ## Extensions & Improvements
 
 ### Real-world data collection (`robot_scanner/`)
-Automated data collection for the Franka Panda, written from scratch. Supports multiple movement patterns: Bézier arch, orbit, line-scan, and random-pose trajectories. Handles camera–robot calibration, pose recording in DreMa format, and depth saving.
+Automated data collection for the Franka Panda, written from scratch. Supports multiple movement patterns: Bézier arch, orbit, line-scan, random-pose, grid-scan, and GELLO replay trajectories. Handles camera–robot calibration, pose recording in DreMa format, and depth saving.
+
+- **`GelloMover`** (`robot_scanner/movements/gello_replay.py`): replays a GELLO-recorded `.npy` trajectory for environment scanning. Subsamples to `n_frames` waypoints evenly spaced by arc length (uniform spatial coverage independent of recording speed). Config: `robot_scanner/configs/movement/gello_replay.yaml`.
 
 ### Camera intrinsics fixed
 The original codebase computed intrinsics from image width and height and assumed no distortion and a centered lens. Changed to read intrinsics directly from the recorded pose files, which contain the calibrated `K` matrix from the actual sensor. Principal point and focal lengths now reflect the real camera, including crop and resize corrections.
@@ -53,16 +56,21 @@ Six approaches were tried and evaluated quantitatively using bidirectional Chamf
 
 Full notes, pipeline diagrams, implementation details, and per-object evaluation tables: [`mesh_improvement_notes.md`](docs/mesh_improvement_notes.md).
 
+### Robot Gaussian alignment (`tools/align_robot_gaussians.py`)
+Repositions the original robot surface Gaussians to the current gello joint configuration using pybullet FK-derived per-link SE3 transforms so simulation matches reality.
+
 ## Main Scripts
 
 ```bash
-python robot_scanner/run.py         # collect RGB-D + poses from Franka Panda
-python run_segmentation.py          # generate object masks (SAM3 video/image or GroundingDINO+SAM)
-python create_simulation.py         # extract Gaussians, meshes, URDFs
-# [TODO] record_trajectory.py       # record robot demonstration as pickle for simulate.py
-python simulate.py                  # validate reconstruction interactively
-python generate_new_data.py         # generate augmented training data
-python tools/eval_mesh_quality.py   # quantitative mesh evaluation (Chamfer distance)
+python robot_scanner/run.py                        # collect RGB-D + poses from Franka Panda
+python run_segmentation.py                         # generate object masks (SAM3 video/image or GroundingDINO+SAM)
+python create_simulation.py                        # extract Gaussians, meshes, URDFs
+python tools/convert_trajectory.py                 # convert GELLO .npy recording → DreMa dictionary.pkl
+python simulate.py                                 # validate reconstruction + replay trajectory interactively
+python generate_new_data.py                        # generate augmented training data
+python tools/eval_mesh_quality.py                  # quantitative mesh evaluation (Chamfer distance)
+python tools/foundation_stereo_depth.py            # run FoundationStereo on IR stereo pairs → depth_fs/*.npy
+python tools/align_robot_gaussians.py              # reposition robot Gaussians to current joint config
 ```
 
 ---
