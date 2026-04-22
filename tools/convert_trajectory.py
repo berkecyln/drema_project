@@ -32,7 +32,7 @@ def convert(npy_path: Path) -> Path:
         # gripper_pose: [x, y, z, qx, qy, qz, qw]
         gripper_pose = np.concatenate([step["tcp_pos"], step["tcp_orn"]])
 
-        gripper_open = bool(step["gripper"])
+        gripper_open = step["gripper"] > 0  # GRIPPER_OPEN=1, GRIPPER_CLOSE=-1; bool(-1)==True is wrong
         gripper_joint_positions = GRIPPER_OPEN_WIDTH if gripper_open else GRIPPER_CLOSE_WIDTH
 
         # joint_velocities via central finite differences (forward/backward at edges)

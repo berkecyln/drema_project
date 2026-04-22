@@ -23,7 +23,8 @@ assets:
   filter_objects_gaussians_environment: True
   filter_mesh_objects: True
   fill_mesh_holes: False
-  mesh_method: "geometric_box"  # "tsdf" (default), "tsdf_raw_depth", "poisson", or "geometric_box"
+  mesh_method: "tsdf_raw_depth"  # "tsdf" (default), "tsdf_raw_depth", "poisson", or "geometric_box"
+  depth_dir: "depth_scaled"  # folder used by tsdf_raw_depth; change to "depth_fs" for FoundationStereo depth
 
 
 reference_frame:

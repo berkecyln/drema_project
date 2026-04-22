@@ -59,7 +59,7 @@ def resolve_folders(cfg) -> list:
     return resolved
 
 
-def load_prompt_image(data_folder: Path):
+def load_prompt_image(data_folder: Path, prompt_frame=None):
     images_dir = data_folder / "images"
     if not images_dir.exists():
         raise FileNotFoundError(f"No images/ folder in {data_folder}")
@@ -73,9 +73,11 @@ def load_prompt_image(data_folder: Path):
     if not files:
         raise RuntimeError(f"No images found in {images_dir}")
 
-    mid_idx = len(files) // 2
-    image = np.array(Image.open(files[mid_idx]).convert("RGB"))
-    return image, files[mid_idx], mid_idx
+    idx = prompt_frame if prompt_frame is not None else len(files) // 2
+    if idx < 0 or idx >= len(files):
+        raise ValueError(f"prompt_frame {idx} out of range (0–{len(files) - 1})")
+    image = np.array(Image.open(files[idx]).convert("RGB"))
+    return image, files[idx], idx
 
 
 def assign_ids(labels: list) -> list:
@@ -236,8 +238,9 @@ def main():
     for folder in folders:
         print(f"--- {folder.name} ---")
         try:
-            image_np, prompt_file, prompt_frame = load_prompt_image(folder)
-        except (FileNotFoundError, RuntimeError) as e:
+            prompt_frame_cfg = cfg.sam3_video.get("prompt_frame", None)
+            image_np, prompt_file, prompt_frame = load_prompt_image(folder, prompt_frame_cfg)
+        except (FileNotFoundError, RuntimeError, ValueError) as e:
             print(f"  Skipping: {e}")
             continue
 

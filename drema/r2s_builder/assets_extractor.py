@@ -18,7 +18,7 @@ from drema.gaussian_splatting_utils.mesh_utils import fill_mesh_holes, extract_m
 
 
 class AssetsManager:
-    def __init__(self, source_path, assets_path, optimizer, dataset, opt, pipe, gaussians_iterations, mesh_iterations, experiment_name="Exp_default", filter_mesh_objects=True, fill_holes=True, mesh_method='tsdf'):
+    def __init__(self, source_path, assets_path, optimizer, dataset, opt, pipe, gaussians_iterations, mesh_iterations, experiment_name="Exp_default", filter_mesh_objects=True, fill_holes=True, mesh_method='tsdf', depth_dir='depth_scaled'):
 
         self.source_path = source_path
         self.assets_path = assets_path
@@ -53,6 +53,7 @@ class AssetsManager:
         self.filter_mesh_objects = filter_mesh_objects
         self.fill_holes = fill_holes
         self.mesh_method = mesh_method
+        self.depth_dir = depth_dir
 
         # iterations
         self.gaussians_iterations = gaussians_iterations
@@ -76,7 +77,7 @@ class AssetsManager:
 
     def load_data(self):
         images_dir_path = os.path.join(self.source_path, "images")
-        depth_dir_path = os.path.join(self.source_path, "depth_scaled")
+        depth_dir_path = os.path.join(self.source_path, self.depth_dir)
         masks_dir_path = os.path.join(self.source_path, "object_mask")
         poses_dir_path = os.path.join(self.source_path, "poses")
 
@@ -171,7 +172,7 @@ class AssetsManager:
                 if self.mesh_method == 'poisson':
                     mesh = extract_mesh_poisson(trainer.gaussians, trainer.scene.getTrainCameras(), trainer.opt)
                 elif self.mesh_method == 'tsdf_raw_depth':
-                    mesh = trainer.extract_mesh(depth_dir=os.path.join(self.source_path, "depth_scaled"))
+                    mesh = trainer.extract_mesh(depth_dir=os.path.join(self.source_path, self.depth_dir))
                 else:
                     mesh = trainer.extract_mesh()
                 if self.filter_mesh_objects:
@@ -204,7 +205,7 @@ class AssetsManager:
             if self.mesh_method == 'poisson':
                 mesh = extract_mesh_poisson(trainer.gaussians, trainer.scene.getTrainCameras(), trainer.opt)
             elif self.mesh_method == 'tsdf_raw_depth':
-                mesh = trainer.extract_mesh(depth_dir=os.path.join(self.source_path, "depth_scaled"))
+                mesh = trainer.extract_mesh(depth_dir=os.path.join(self.source_path, self.depth_dir))
             else:
                 mesh = trainer.extract_mesh()
             if self.fill_holes:

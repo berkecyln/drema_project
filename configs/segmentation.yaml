@@ -6,7 +6,7 @@ method: "sam3_video"
 # Input/output paths
 input_dir: "input"
 # Folders to process; leave empty to process all subdirectories in input_dir
-folders: ["new_parallel"]
+folders: ["gello_purplebottle3"]
 output_subdir: "object_mask"
 
 # Debug visualization
@@ -39,13 +39,10 @@ sam3:
   
   # Text prompts for object detection
   object_prompts:
-    - "red cube"
+    - "purple bottle"
     #- "green cup"
-    #- "orange cup"
-    #- "yellow lego"
   
-  
-  table_prompt: "countertop"
+  table_prompt: "table"
   
   # Segmentation thresholds
   threshold: 0.5  # Instance detection
@@ -57,13 +54,14 @@ sam3_video:
   # Labels to track. 'table' gets id=50, all others get id=1,2,...
   labels:
     - "table"
-    - "red cube"
+    - "dark blue bottle"
     #- "green cup"
     #- "orange cup"
     #- "yellow lego"
   # Path to visual_prompts.yaml; if null, looks for <input_folder>/visual_prompts.yaml
   visual_prompts_file: null
   propagation_direction: "both"  # "forward", "backward", or "both"
+  prompt_frame: 172  # Frame index for prompt picking; null = middle frame
 
 device: null
 background_id: 255  # Background pixel value
