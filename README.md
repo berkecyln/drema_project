@@ -4,23 +4,22 @@ This is a fork of [DreMa (ICLR 2025)](https://dreamtomanipulate.github.io/) deve
 
 > For the original DreMa codebase readme see [Original README](docs/original_drema_instructions.md).
 
-**Thesis goal:** Extend DreMa towards articulated object manipulation and deploy the full pipeline in a real robot lab environment using a Franka Emika Panda with a wrist-mounted RealSense D435.
+**Thesis goal:** Extend DreMa towards articulated object manipulation and deploy the full pipeline in a real robot lab environment using a Franka Emika Panda with a wrist-mounted RealSense D415.
 
 - **Robot control:** [`robot_io`](https://github.com/acl21/robot_io)  see `/robot/` directory. All camera interfacing and robot control goes through robot_io.
-- **Trajectory recording:** [GELLO](https://wuphilipp.github.io/gello_software/) teleoperation device used to record manipulation demonstrations. Joint positions saved as `.npy`, converted to DreMa `.pkl` format via `tools/convert_trajectory.py`.
+- **Trajectory recording:** [GELLO](https://wuphilipp.github.io/gello_software/) teleoperation device used to record manipulation demonstrations. Joint positions saved as `.npy` under `assets/trajectories/npy/`.
 
 ## Extensions & Improvements
 
 ### Real-world data collection (`robot_scanner/`)
-Automated data collection for the Franka Panda, written from scratch. Supports multiple movement patterns: Bézier arch, orbit, line-scan, random-pose, grid-scan, and GELLO replay trajectories. Handles camera–robot calibration, pose recording in DreMa format, and depth saving.
+End to end automated data collection for the Franka Panda. Supports multiple movement patterns: Bézier arch, orbit, line-scan, random-pose and GELLO replay trajectories. Handles camera–robot calibration, pose recording in DreMa format, and depth saving.
 
-- **`GelloMover`** (`robot_scanner/movements/gello_replay.py`): replays a GELLO-recorded `.npy` trajectory for environment scanning. Subsamples to `n_frames` waypoints evenly spaced by arc length (uniform spatial coverage independent of recording speed). Config: `robot_scanner/configs/movement/gello_replay.yaml`.
+- **`GelloMover`** (`robot_scanner/movements/gello_replay.py`): replays a GELLO-recorded `.npy` trajectory for environment scanning. Subsamples to `n_frames` waypoints evenly spaced by arc length (uniform spatial coverage independent of recording speed).
 
 ### Camera intrinsics fixed
 The original codebase computed intrinsics from image width and height and assumed no distortion and a centered lens. Changed to read intrinsics directly from the recorded pose files, which contain the calibrated `K` matrix from the actual sensor. Principal point and focal lengths now reflect the real camera, including crop and resize corrections.
 
-### Lens distortion correction
-Added `undistort_data.py` to apply full radial+tangential distortion correction to RGB and depth before processing.
+A second instance of the same bug existed in the data generation renderer (`generate_new_data.py` → `drema/environment/observer/camera.py`): image width and height were inferred as `cx*2` and `cy*2`, which only holds if the lens is perfectly centered. For a flipped D415 with `cy≈122` in a 640×360 image, this produced wrong 654×244 renders. Fixed by storing the actual image dimensions in `dictionary.pkl` (read from the recorded `images/` directory in `prepare_scene_for_generation.py`) and using them in the renderer.
 
 ### Segmentation: SAM3 backend added
 Integrated Meta's [SAM3](https://github.com/facebookresearch/sam2) (video foundation model) and [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO)+[SAM](https://github.com/facebookresearch/segment-anything) as segmentation backends. The original paper used DEVA. Selectable via `configs/segmentation.yaml`.
@@ -62,15 +61,20 @@ Repositions the original robot surface Gaussians to the current gello joint conf
 ## Main Scripts
 
 ```bash
+# data collection
 python robot_scanner/run.py                        # collect RGB-D + poses from Franka Panda
 python run_segmentation.py                         # generate object masks (SAM3 video/image or GroundingDINO+SAM)
+
+# simulation setup
 python create_simulation.py                        # extract Gaussians, meshes, URDFs
-python tools/convert_trajectory.py                 # convert GELLO .npy recording → DreMa dictionary.pkl
-python simulate.py                                 # validate reconstruction + replay trajectory interactively
-python generate_new_data.py                        # generate augmented training data
-python tools/eval_mesh_quality.py                  # quantitative mesh evaluation (Chamfer distance)
-python tools/foundation_stereo_depth.py            # run FoundationStereo on IR stereo pairs → depth_fs/*.npy
 python tools/align_robot_gaussians.py              # reposition robot Gaussians to current joint config
+python tools/compute_object_center.py <scene> --object-id <id>  # get rotation_center for augmentation config
+
+# data generation 
+# Edit configs/prepare_scene.yaml (scene path, trajectory, description, overhead camera)
+python tools/prepare_scene_for_generation.py       # convert recording + add camera fields + create aux pkl files
+python simulate.py                                 # validate reconstruction + replay trajectory interactively
+python generate_new_data.py                        # generate approx. 200 augmented episodes
 ```
 
 ---

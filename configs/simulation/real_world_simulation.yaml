@@ -1,8 +1,8 @@
 visualization:
   visualize: True
-  visualize_training_cameras: True
-  visualize_trajectory_cameras: False
-  pybullet_camera: True
+  visualize_training_cameras: False
+  visualize_trajectory_cameras: True
+  pybullet_camera: False
   camera_id: 0
   scale: 1
   transform_matrix: [[1.0, 0.0, 0.0], [0.0, -1.0, 0.0], [0.0, 0.0, -1.0]]
@@ -10,7 +10,7 @@ visualization:
 environment:
   load_environment: True
   labels_file: "labels.txt"
-  filter_labels: True
+  filter_labels: False  # real labels (1,50) are below CoppeliaSim's <60 threshold
   load_trajectory_cameras: False
   load_training_cameras: False
   simulate_objects: True
@@ -61,12 +61,14 @@ robot:
 
 generation:
   generated_data_path: "./data/generated_data"
-  generate_data: False # True if load_trajectory is True
+  generate_data: True # True if load_trajectory is True
   scale: 4
   save_images: True
   rotate_environment: True
   rotate_environment_step: 30
-  rotation_center: [0.3, 0.0, 0.0]
+  rotate_environment_min: -90
+  rotate_environment_max: 91
+  rotation_center: [0.364, -0.098, 0.252]  # dark blue bottle Gaussian center
   translate_environment: False
   translation_values: [0, 0.15, -0.15]
   rotate_objects: True

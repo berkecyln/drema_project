@@ -172,6 +172,7 @@ cython_debug/
 
 outputs/
 input/
+data/
 sample_data/
 logs/
 vahcd_log.txt
