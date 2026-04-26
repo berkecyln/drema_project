@@ -562,6 +562,6 @@
     <joint name="panda_wrist_hand" type="fixed">
         <parent link="Panda_gripper"/>
         <child link="panda_wrist_camera"/>
-        <origin xyz="-0.03 -0.03 0.02" rpy="0 0 2.356109"/>
+        <origin xyz="0.070688 0.100659 0.041000" rpy="0.477868 0.002474 -0.799077"/>
     </joint>
 </robot>
