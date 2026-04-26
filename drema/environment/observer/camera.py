@@ -94,7 +94,7 @@ class CameraManager:
         if name in self.visualization_cameras.keys():
             self.visualization_cameras[name].update_extrinsics(rotation, translation)
 
-    def add_simulation_camera(self, id, scale, name, rotation, translation, intrinsics, width, height, near=0, far=10):
+    def add_simulation_camera(self, id, scale, name, rotation, translation, intrinsics, width, height, near=0, far=10, crop_top=0):
         """
         Add a new camera to the simulation
         :param id: camera id
@@ -105,9 +105,10 @@ class CameraManager:
         :param intrinsics: camera intrinsics encoded in a 3x3 matrix
         :param width: camera width
         :param height: camera height
+        :param crop_top: rows to remove from top of rendered image after subsampling
         :return: None
         """
-        camera = CameraWrapper(id, scale, name, rotation, translation, intrinsics, width, height, near, far)
+        camera = CameraWrapper(id, scale, name, rotation, translation, intrinsics, width, height, near, far, crop_top=crop_top)
         self.simulation_cameras[name] = camera
 
     def add_visualization_camera(self, id, scale, name, rotation, translation, intrinsics, width, height):
@@ -150,6 +151,9 @@ class CameraManager:
             intrinsics = params[2]
             far = params[3]
             near = params[4]
+            stored_w = params[5] if len(params) > 5 else None
+            stored_h = params[6] if len(params) > 6 else None
+            crop_top = params[7] if len(params) > 7 else 0
 
             rotation = extrinsics[:3, :3]
             translation = extrinsics[:3, 3]
@@ -159,12 +163,18 @@ class CameraManager:
             # increases the dimensions of the intrinsics
             intrinsics[:2, :] *= scale
 
-            # compute the width and height
-            height = int(intrinsics[1, 2] * 2)
-            width = int(intrinsics[0, 2] * 2)
+            # use stored image dimensions; fall back to cx*2/cy*2 for legacy data
+            if stored_w is not None and stored_h is not None:
+                width = int(stored_w * scale)
+                # render at pre-crop height so crop_top rows can be removed after rendering
+                height = int((stored_h + crop_top) * scale)
+            else:
+                height = int(intrinsics[1, 2] * 2)
+                width = int(intrinsics[0, 2] * 2)
+                crop_top = 0
 
             if simulation:
-                self.add_simulation_camera(k, scale, name, rotation, translation, intrinsics, width, height, near, far)
+                self.add_simulation_camera(k, scale, name, rotation, translation, intrinsics, width, height, near, far, crop_top=crop_top)
 
             if visualization:
                 self.add_visualization_camera(k, scale, name, rotation, translation, intrinsics, width, height)
@@ -209,7 +219,7 @@ class CameraManager:
 
 
 class CameraWrapper:
-    def __init__(self, id, scale, name, rotation, translation, intrinsics, width, height, near=0, far=10):
+    def __init__(self, id, scale, name, rotation, translation, intrinsics, width, height, near=0, far=10, crop_top=0):
         self.id = id
         self.scale = scale
         self.name = name
@@ -220,6 +230,7 @@ class CameraWrapper:
         self.height = height
         self.near = near
         self.far = far
+        self.crop_top = crop_top  # rows removed from top after subsampling (matches real camera finger crop)
 
         # initialize the parameters
         self.FovX = 0

@@ -184,6 +184,11 @@ class Environment:
             rgb = (rgb[::scale, ::scale] * 255).astype(np.uint8)
             depth = depth[::scale, ::scale]
 
+            # remove top rows to match real camera finger crop (crop_top is in post-subsample pixels)
+            if getattr(cam, 'crop_top', 0) > 0:
+                rgb = rgb[cam.crop_top:, :]
+                depth = depth[cam.crop_top:, :]
+
             if compress_depth:
                 near = cam.near
                 far = cam.far

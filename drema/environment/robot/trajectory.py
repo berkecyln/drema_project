@@ -107,7 +107,10 @@ class RobotTrajectory:
 
         camera_params = {}
         for camera_name in camera_names:
-            camera_params[camera_name] = (camera_name, step[camera_name + "_camera_extrinsics"], step[camera_name + "_camera_intrinsics"], step[camera_name + "_camera_far"], step[camera_name + "_camera_near"])
+            w = step.get(camera_name + "_camera_width", None)
+            h = step.get(camera_name + "_camera_height", None)
+            crop_top = step.get(camera_name + "_camera_crop_top", 0)
+            camera_params[camera_name] = (camera_name, step[camera_name + "_camera_extrinsics"], step[camera_name + "_camera_intrinsics"], step[camera_name + "_camera_far"], step[camera_name + "_camera_near"], w, h, crop_top)
 
         return camera_params
 

@@ -107,7 +107,7 @@ def simulation_loop(environment, camera_manager, cfg, frequency_logger):
 
 # use hydra for configuration
 @torch.no_grad()
-@hydra.main(version_base=None, config_path="configs", config_name="config")
+@hydra.main(version_base=None, config_path="configs", config_name="config_real")
 def main(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
 
@@ -171,7 +171,9 @@ def main(cfg: DictConfig) -> None:
     episode += 1000
     if cfg.simulation.generation.rotate_environment:
 
-        rotations = range(0, 360, cfg.simulation.generation.rotate_environment_step)
+        rot_min = cfg.simulation.generation.get('rotate_environment_min', 0)
+        rot_max = cfg.simulation.generation.get('rotate_environment_max', 360)
+        rotations = range(rot_min, rot_max, cfg.simulation.generation.rotate_environment_step)
 
         for rotation in rotations:
 
