@@ -1,0 +1,29 @@
+defaults:
+  - simulation: real_world_simulation
+  - _self_
+
+# scene to prepare
+data:
+  source_path: "/home/gunnleif/Projects/drema/drema_project/input/gello_purplebottle3_rawtsdf"
+  assets_directory: "output"
+  assets_path: "${data.source_path}/${data.assets_directory}"
+
+# task settings
+task:
+  # path to the raw .npy recording
+  trajectory_npy: "assets/trajectories/npy/pickup_purplebottle.npy"
+
+  # language description used by PerAct
+  description: "pick up the dark blue bottle and place it to the left"
+
+  # camera clipping planes (metres)
+  camera:
+    near: 0.1
+    far: 5.0
+    crop_top: 120  # rows removed from top of rendered image — must match real camera crop_coords[0]
+
+  # Azure Kinect overhead camera — set enabled: true after calibration
+  overhead:
+    enabled: false
+    extrinsics_file: null
+    intrinsics_file: null
