@@ -179,6 +179,8 @@ def main(cfg: DictConfig) -> None:
             step["overhead_camera_extrinsics"] = T_overhead.copy()
             step["overhead_camera_near"] = near
             step["overhead_camera_far"] = far
+            step["overhead_camera_width"] = int(task.overhead.width)
+            step["overhead_camera_height"] = int(task.overhead.height)
 
     cameras = ["wrist"] + (["overhead"] if T_overhead is not None else [])
     print(f"Patched {len(demo)} steps - cameras: {cameras}")
