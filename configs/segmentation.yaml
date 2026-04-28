@@ -6,7 +6,7 @@ method: "sam3_video"
 # Input/output paths
 input_dir: "input"
 # Folders to process; leave empty to process all subdirectories in input_dir
-folders: ["gello_purplebottle3"]
+folders: ["gello_bottle4_rawtsdf"]
 output_subdir: "object_mask"
 
 # Debug visualization

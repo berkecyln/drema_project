@@ -175,11 +175,12 @@ input/
 data/
 sample_data/
 logs/
-vahcd_log.txt
+vhacd_log.txt
 sam3/
 NeuS2/
 TripoSR/
 robot_io/
+RLBench/
 run_renderer.sh
 
 CLAUDE.md
