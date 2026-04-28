@@ -19,12 +19,15 @@ import numpy as np
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 CALIBRATION_FILE = (
-    "/home/ceylanb/robot/robot_io/calibration/calibration_files/"
+    "/home/gunnleif/Projects/drema/drema_project/assets/calibration/calibration_files/"
     "panda_azure_kinect_323922212_T_robot_cam_2026_04_27__12_12.npy"
 )
 
-# Robot base position in DreMa simulation world frame (from real_world_simulation.yaml)
-ROBOT_INITIAL_POSITION = np.array([0.260, 0.008, -0.831])
+# Robot physical base center (center of Joint 1 rotation axis at the mounting surface).
+# - X: 0.260 (initial) - 0.268 (URDF joint offset) = -0.008
+# - Y: 0.008 (initial) - 0.006 (URDF joint offset) = 0.002
+# - Z: -0.831 (initial) + 0.820 (URDF mesh offset) = -0.011
+ROBOT_PHYSICAL_BASE_POSITION = np.array([-0.008, 0.002, -0.011])
 
 # Native Kinect 720p resolution
 NATIVE_W, NATIVE_H = 1280, 720
@@ -33,7 +36,7 @@ NATIVE_W, NATIVE_H = 1280, 720
 TARGET_W, TARGET_H = 640, 360
 
 OUTPUT_DIR = (
-    "/home/ceylanb/robot/robot_io/calibration/calibration_files"
+    "/home/gunnleif/Projects/drema/drema_project/assets/calibration/calibration_files"
 )
 
 # ── Extrinsics ────────────────────────────────────────────────────────────────
@@ -64,7 +67,7 @@ def compute_intrinsics_from_device():
     Initialize the Kinect via robot_io, read factory-calibrated intrinsics at
     native 720p, then scale to TARGET_W x TARGET_H (no crop applied).
     """
-    sys.path.insert(0, "/home/ceylanb/robot/robot_io")
+    sys.path.insert(0, "/home/gunnleif/Projects/drema/robot/robot_io")
     from robot_io.cams.kinect4.kinect4 import Kinect4
 
     print("  Connecting to Kinect (device 0)...")
@@ -91,20 +94,24 @@ if __name__ == "__main__":
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     print("=== Extrinsics ===")
-    T_w2c = compute_extrinsics(CALIBRATION_FILE, ROBOT_INITIAL_POSITION)
+    T_w2c = compute_extrinsics(CALIBRATION_FILE, ROBOT_PHYSICAL_BASE_POSITION)
     print(f"T_w2c_sim:\n{T_w2c}")
     extrinsics_path = os.path.join(OUTPUT_DIR, "kinect_overhead_extrinsics.npy")
     np.save(extrinsics_path, T_w2c)
     print(f"Saved: {extrinsics_path}\n")
 
     print("=== Intrinsics ===")
-    K = compute_intrinsics_from_device()
-    print(f"K ({TARGET_W}x{TARGET_H}):\n{K}")
-    intrinsics_path = os.path.join(OUTPUT_DIR, "kinect_overhead_intrinsics.npy")
-    np.save(intrinsics_path, K)
-    print(f"Saved: {intrinsics_path}\n")
+    try:
+        K = compute_intrinsics_from_device()
+        print(f"K ({TARGET_W}x{TARGET_H}):\n{K}")
+        intrinsics_path = os.path.join(OUTPUT_DIR, "kinect_overhead_intrinsics.npy")
+        np.save(intrinsics_path, K)
+        print(f"Saved: {intrinsics_path}\n")
+    except Exception as e:
+        print(f"  Warning: Could not read intrinsics from device ({e})")
+        print("  Using existing kinect_overhead_intrinsics.npy if available.")
 
     print("=== Done ===")
     print("Update configs/prepare_scene.yaml:")
     print(f"  extrinsics_file: {extrinsics_path}")
-    print(f"  intrinsics_file: {intrinsics_path}")
+    print(f"  intrinsics_file: {os.path.join(OUTPUT_DIR, 'kinect_overhead_intrinsics.npy')}")
