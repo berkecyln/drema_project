@@ -180,7 +180,7 @@ sam3/
 NeuS2/
 TripoSR/
 robot_io/
-RLBench/
+
 run_renderer.sh
 
 CLAUDE.md
