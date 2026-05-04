@@ -155,10 +155,13 @@ class CameraManager:
             stored_h = params[6] if len(params) > 6 else None
             crop_top = params[7] if len(params) > 7 else 0
 
-            rotation = extrinsics[:3, :3]
-            translation = extrinsics[:3, 3]
-
-            translation = - np.dot(np.transpose(rotation), translation)
+            # extrinsics is T_w2c. To be consistent with update_camera_extrinsics logic,
+            # we pass R_c2w (rotation) and t_w2c (translation) to CameraWrapper.
+            R_w2c = extrinsics[:3, :3]
+            t_w2c = extrinsics[:3, 3]
+            
+            rotation = R_w2c.T # R_c2w
+            translation = t_w2c
 
             # increases the dimensions of the intrinsics
             intrinsics[:2, :] *= scale

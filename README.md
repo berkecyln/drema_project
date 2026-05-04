@@ -4,10 +4,11 @@ This is a fork of [DreMa (ICLR 2025)](https://dreamtomanipulate.github.io/) deve
 
 > For the original DreMa codebase readme see [Original README](docs/original_drema_instructions.md).
 
-**Thesis goal:** Extend DreMa towards articulated object manipulation and deploy the full pipeline in a real robot lab environment using a Franka Emika Panda with a wrist-mounted RealSense D415.
+**Thesis goal:** Extend DreMa and deploy the full pipeline in a real robot lab environment using a Franka Emika Panda with a wrist-mounted RealSense D415 and overhead Azure Kinect DK.
 
 - **Robot control:** [`robot_io`](https://github.com/acl21/robot_io)  see `/robot/` directory. All camera interfacing and robot control goes through robot_io.
 - **Trajectory recording:** [GELLO](https://wuphilipp.github.io/gello_software/) teleoperation device used to record manipulation demonstrations. Joint positions saved as `.npy` under `assets/trajectories/npy/`.
+- **Cameras:** Wrist RealSense D415 (egocentric) + fixed overhead Azure Kinect DK. Both cameras are rendered per-step in simulation and included in generated episodes for dual-camera training.
 
 ## Extensions & Improvements
 
@@ -20,6 +21,9 @@ End to end automated data collection for the Franka Panda. Supports multiple mov
 The original codebase computed intrinsics from image width and height and assumed no distortion and a centered lens. Changed to read intrinsics directly from the recorded pose files, which contain the calibrated `K` matrix from the actual sensor. Principal point and focal lengths now reflect the real camera, including crop and resize corrections.
 
 A second instance of the same bug existed in the data generation renderer (`generate_new_data.py` → `drema/environment/observer/camera.py`): image width and height were inferred as `cx*2` and `cy*2`, which only holds if the lens is perfectly centered. For a flipped D415 with `cy≈122` in a 640×360 image, this produced wrong 654×244 renders. Fixed by storing the actual image dimensions in `dictionary.pkl` (read from the recorded `images/` directory in `prepare_scene_for_generation.py`) and using them in the renderer.
+
+### Wrist camera per-step extrinsics
+`generate_new_data.py` now writes the FK-derived `T_w2c` for the wrist camera into each step of the saved `generated_trajectory.pkl`. Previously all steps stored the static initial-pose extrinsics. The overhead camera is physically fixed so its stored extrinsics are correct throughout.
 
 ### Segmentation: SAM3 backend added
 Integrated Meta's [SAM3](https://github.com/facebookresearch/sam2) (video foundation model) and [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO)+[SAM](https://github.com/facebookresearch/segment-anything) as segmentation backends. The original paper used DEVA. Selectable via `configs/segmentation.yaml`.
@@ -70,11 +74,15 @@ python create_simulation.py                        # extract Gaussians, meshes, 
 python tools/align_robot_gaussians.py              # reposition robot Gaussians to current joint config
 python tools/compute_object_center.py <scene> --object-id <id>  # get rotation_center for augmentation config
 
-# data generation 
+# data generation
 # Edit configs/prepare_scene.yaml (scene path, trajectory, description, overhead camera)
 python tools/prepare_scene_for_generation.py       # convert recording + add camera fields + create aux pkl files
 python simulate.py                                 # validate reconstruction + replay trajectory interactively
-python generate_new_data.py                        # generate approx. 200 augmented episodes
+python generate_new_data.py                        # generate approx. 200 augmented episodes (wrist + overhead)
+
+# PerAct training data preparation
+conda activate peract_env
+python RLBench/tools/prepare_data_for_peract.py --cameras wrist overhead
 ```
 
 ---

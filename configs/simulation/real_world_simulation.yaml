@@ -1,5 +1,5 @@
 visualization:
-  visualize: True
+  visualize: False
   visualize_training_cameras: False
   visualize_trajectory_cameras: True
   pybullet_camera: False
@@ -68,7 +68,10 @@ generation:
   rotate_environment_step: 30
   rotate_environment_min: -90
   rotate_environment_max: 91
-  rotation_center: [0.364, -0.098, 0.252]  # dark blue bottle Gaussian center
+  rotation_center: [0.364, -0.098, 0.252]       # gello_bottle1 center
+  # rotation_center: [0.3481, -0.2553, 0.2497]    # gello_bottle2 center
+  # rotation_center: [0.3537, -0.1311, 0.2534]    # gello_bottle3 center
+  # rotation_center: [0.4212, -0.1957, 0.2534]    # gello_bottle4 center
   translate_environment: False
   translation_values: [0, 0.15, -0.15]
   rotate_objects: True

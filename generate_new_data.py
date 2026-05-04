@@ -40,7 +40,13 @@ def simulation_loop(environment, camera_manager, cfg, frequency_logger):
                     translation, rotation = environment.get_wrist_camera_extrinsics()
                     camera_manager.update_camera_extrinsics("wrist", rotation, translation)
 
-                    # here we update also the trajectory
+                    # write per-step T_w2c into the trajectory so saved pkl has correct extrinsics
+                    R_w2c = rotation.T
+                    t_w2c = -R_w2c @ translation
+                    T_w2c_step = np.eye(4)
+                    T_w2c_step[:3, :3] = R_w2c
+                    T_w2c_step[:3, 3] = t_w2c
+                    environment.trajectory.demo[environment.waypoint_index]["wrist_camera_extrinsics"] = T_w2c_step
                 
                 # get the camera names and objects
                 names, cameras = camera_manager.get_simulation_cameras()
@@ -136,7 +142,7 @@ def main(cfg: DictConfig) -> None:
 
     print("Final positions: ", final_positions_original_trajectory)
     base_name = os.path.basename(cfg.data.source_path)
-    output_path = os.path.join(cfg.simulation.generation.generated_data_path, base_name)
+    output_path = os.path.join(cfg.simulation.generation.generated_data_path, base_name + "_episode0_start")
     save_images(os.path.join(output_path, "episode0"), images, cfg.data.source_path)
     # save the augmented trajectory
     trajectory.save(os.path.join(output_path, "episode0", "generated_trajectory.pkl"))
