@@ -15,7 +15,7 @@ task:
 
 
   # language description used by PerAct
-  description: "pick up the dark blue bottle and place it to the left"
+  description: "pick up the dark blue bottle and place it"
 
   # camera clipping planes (metres)
   camera:
