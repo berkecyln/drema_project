@@ -1,0 +1,8 @@
+defaults:
+  - robot: panda_franky_interface_policy
+  - cams: camera_manager
+  - _self_
+
+hydra:
+  searchpath:
+    - file:///home/ceylanb/robot/robot_io/robot_io/conf

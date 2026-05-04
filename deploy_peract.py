@@ -5,7 +5,7 @@ Usage:
     conda activate robotio
     python deploy_peract.py \
         --weights  logs/peract/bottle_pickup/PERACT_BC/seed0/weights \
-        --config   logs/peract/bottle_pickup/PERACT_BC/seed0/.hydra/config.yaml
+        --config   logs/peract/bottle_pickup/PERACT_BC/seed0/config.yaml
 
 The weights dir contains one .pt file per attention layer (e.g. QAttentionPerActBCAgent_layer0.pt).
 The config is the hydra config saved automatically during training.
@@ -23,7 +23,6 @@ from scipy.spatial.transform import Rotation as ScipyRotation
 
 PERACT_ROOT   = '/home/ceylanb/DreMa/drema_project/peract'
 PROJECT_ROOT  = '/home/ceylanb/DreMa/drema_project'
-ROBOT_IO_CONF = '/home/ceylanb/robot/robot_io/robot_io/conf'
 sys.path.insert(0, PERACT_ROOT)
 sys.path.insert(0, PROJECT_ROOT)
 
@@ -38,7 +37,7 @@ EPISODE_LENGTH = 50
 
 
 def _backproject(depth_m, K, T_w2c):
-    """Backproject depth (H,W) meters to world-frame point cloud (H,W,3). T_w2c inverted to T_c2w."""
+    """Backproject depth (H,W) meters to world-frame point cloud (H,W,3)."""
     H, W = depth_m.shape
     u, v = np.meshgrid(np.arange(W), np.arange(H))
     x = (u - K[0, 2]) * depth_m / K[0, 0]
@@ -53,9 +52,9 @@ def _wrist_T_w2c(robot, T_tcp_cam):
     """Per-step world-to-camera for the wrist camera using current TCP pose + fixed T_tcp_cam."""
     state = robot.get_state()
     T_world_tcp = np.eye(4, dtype=np.float64)
-    T_world_tcp[:3, :3] = ScipyRotation.from_quat(state['tcp_orn']).as_matrix()  # tcp_orn: xyzw
+    T_world_tcp[:3, :3] = ScipyRotation.from_quat(state['tcp_orn']).as_matrix()
     T_world_tcp[:3, 3]  = state['tcp_pos']
-    T_world_cam = T_world_tcp @ T_tcp_cam   # T_world←cam
+    T_world_cam = T_world_tcp @ T_tcp_cam
     return np.linalg.inv(T_world_cam).astype(np.float32)
 
 
@@ -66,16 +65,15 @@ def build_obs_dict(cam_manager, robot, K_wrist, K_overhead, T_tcp_cam,
 
     rgb_w = np.array(PILImage.fromarray(images['rgb_gripper']).resize(IMAGE_SIZE))
     rgb_o = np.array(PILImage.fromarray(images['rgb_static']).resize(IMAGE_SIZE))
-    dep_w = np.array(PILImage.fromarray(images['depth_gripper']).resize(IMAGE_SIZE, PILImage.NEAREST))
     dep_o = np.array(PILImage.fromarray(images['depth_static']).resize(IMAGE_SIZE, PILImage.NEAREST))
+    dep_w = np.array(PILImage.fromarray(images['depth_gripper']).resize(IMAGE_SIZE, PILImage.NEAREST))
 
-    # robot_io cameras return float32 meters (RealSense: raw*depth_scale, Kinect: raw/1000)
-    dep_w_m = dep_w.astype(np.float32)
     dep_o_m = dep_o.astype(np.float32)
+    dep_w_m = dep_w.astype(np.float32)
 
     T_wrist_w2c = _wrist_T_w2c(robot, T_tcp_cam)
-    pcd_w = _backproject(dep_w_m, K_wrist,   T_wrist_w2c)
     pcd_o = _backproject(dep_o_m, K_overhead, T_overhead_w2c)
+    pcd_w = _backproject(dep_w_m, K_wrist,    T_wrist_w2c)
 
     grip_open   = float(state['gripper_opening_width'] >= 0.078)
     # training data uses discrete [0.04, 0.04] / [0.0, 0.0], not continuous width/2
@@ -93,15 +91,15 @@ def build_obs_dict(cam_manager, robot, K_wrist, K_overhead, T_tcp_cam,
         ('overhead', rgb_o, pcd_o, K_overhead, T_overhead_w2c),
     ]:
         # PreprocessAgent normalizes [0,255]→[-1,1] internally, so pass raw uint8 values
-        obs[f'{cam}_rgb']               = torch.tensor(rgb, dtype=torch.float32, device=device).permute(2,0,1).unsqueeze(0)
-        obs[f'{cam}_point_cloud']       = torch.tensor(pcd, dtype=torch.float32, device=device).permute(2,0,1).unsqueeze(0)
+        obs[f'{cam}_rgb']               = torch.tensor(rgb, dtype=torch.float32, device=device).permute(2,0,1).unsqueeze(0).unsqueeze(0)
+        obs[f'{cam}_point_cloud']       = torch.tensor(pcd, dtype=torch.float32, device=device).permute(2,0,1).unsqueeze(0).unsqueeze(0)
         obs[f'{cam}_camera_extrinsics'] = to_tensor(T)
         obs[f'{cam}_camera_intrinsics'] = to_tensor(K)
 
     obs['low_dim_state']     = torch.tensor(
-        [[grip_open, grip_joints[0], grip_joints[1], time_norm]],
+        [[[grip_open, grip_joints[0], grip_joints[1], time_norm]]],
         dtype=torch.float32, device=device)
-    obs['ignore_collisions'] = torch.tensor([[0.0]], dtype=torch.float32, device=device)
+    obs['ignore_collisions'] = torch.tensor([[[0.0]]], dtype=torch.float32, device=device)
     obs['lang_goal_tokens']  = lang_tokens.to(device)
 
     return obs
@@ -111,17 +109,19 @@ def load_calibration(cam_manager):
     calib = os.path.join(PROJECT_ROOT, 'assets/calibration/calibration_files')
 
     # T_tcp_cam: camera-to-TCP transform (T_tcp←cam), shape (4,4)
-    T_tcp_cam  = np.load(os.path.join(calib, 'panda_realsenseD435_T_tcp_cam.npy')).astype(np.float64)
+    T_tcp_cam = np.load(os.path.join(calib, 'panda_realsenseD435_T_tcp_cam.npy')).astype(np.float64)
 
     # K_wrist from live camera at resize_resolution 640x360 (crop/flip already applied)
-    intr   = cam_manager.gripper_cam.get_intrinsics()
+    intr    = cam_manager.gripper_cam.get_intrinsics()
     K_wrist = np.array([[intr['fx'], 0, intr['cx']],
-                         [0, intr['fy'], intr['cy']],
-                         [0, 0, 1]], dtype=np.float32)
+                        [0, intr['fy'], intr['cy']],
+                        [0, 0, 1]], dtype=np.float32)
 
-    # overhead stored at 640x360
+    # T_robot_cam = T_c2w (camera-to-world), invert to get T_w2c for backprojection
+    T_overhead = np.linalg.inv(
+        np.load(os.path.join(calib, 'panda_azure_kinect_323922212_T_robot_cam_2026_04_27__12_12.npy'))
+    ).astype(np.float32)
     K_overhead = np.load(os.path.join(calib, 'kinect_overhead_intrinsics.npy')).astype(np.float32)
-    T_overhead = np.load(os.path.join(calib, 'kinect_overhead_extrinsics.npy')).astype(np.float32)
 
     # scale intrinsics from 640x360 to training resolution 128x128
     orig_w, orig_h = 640, 360
@@ -143,32 +143,28 @@ def main():
 
     device = torch.device(DEVICE)
 
-    # reconstruct PerAct agent from training config and load weights
     cfg   = OmegaConf.load(args.config)
     agent = create_agent(cfg)
     agent.build(training=False, device=device)   # sets eval mode internally; do NOT call .eval()
     agent.load_weights(args.weights)
     print("Agent loaded from", args.weights)
 
-    # encode task language once
-    lang_tokens = clip_lib.tokenize([TASK_DESC])   # (1, 77)
+    lang_tokens = clip_lib.tokenize([TASK_DESC]).unsqueeze(0)   # (1, 1, 77)
 
-    # init robot and cameras via Hydra (resolves nested defaults in config files)
     import hydra
     from hydra import initialize_config_dir, compose
-    with initialize_config_dir(config_dir=ROBOT_IO_CONF, version_base=None):
-        robot_cfg = compose(config_name='robot/panda_franky_interface_policy')
-        cams_cfg  = compose(config_name='cams/camera_manager',
-                            overrides=['use_static_cam=true', 'threaded_cameras=false'])
+    DEPLOY_CONF = '/home/ceylanb/DreMa/drema_project/configs'
+    with initialize_config_dir(config_dir=DEPLOY_CONF, version_base=None):
+        cfg = compose(config_name='deploy')
 
-    robot       = hydra.utils.instantiate(robot_cfg)
-    cam_manager = hydra.utils.instantiate(cams_cfg)
+    robot       = hydra.utils.instantiate(cfg.robot)
+    cam_manager = hydra.utils.instantiate(cfg.cams)
+    robot_cfg   = cfg.robot
 
     K_wrist, T_tcp_cam, K_overhead, T_overhead_w2c = load_calibration(cam_manager)
 
-    from robot_io.utils.utils import restrict_workspace, FpsController
+    from robot_io.utils.utils import restrict_workspace
     workspace_limits = robot_cfg.workspace_limits
-    fps = FpsController(freq=15)
 
     print(f"Moving to neutral and opening gripper...")
     robot.move_to_neutral()
@@ -187,15 +183,17 @@ def main():
         quat      = action[3:7]   # xyzw, matches robot_io's quaternion convention
         grip_open = action[7] > 0.5
 
-        pos = restrict_workspace(workspace_limits, pos)
-        robot.move_async_cart_pos_abs_lin(pos, quat)
-        if grip_open:
-            robot.open_gripper()
-        else:
-            robot.close_gripper()
+        pos   = restrict_workspace(workspace_limits, pos)
+        euler = ScipyRotation.from_quat(quat).as_euler('xyz', degrees=True)
+        print(f"  step {step:02d}  pos={np.round(pos,3)}  euler_deg={np.round(euler,1)}  grip={'open' if grip_open else 'close'}")
 
-        fps.step()
-        print(f"  step {step:02d}  pos={np.round(pos,3)}  grip={'open' if grip_open else 'close'}")
+        # LIN applies NE_T_EE internally (same as scanner/arch code) — PTP skips it, giving wrong orientation
+        robot.move_cart_pos_abs_lin(pos, quat)
+
+        if grip_open:
+            robot.open_gripper(blocking=True)
+        else:
+            robot.close_gripper(blocking=True)
 
 
 if __name__ == '__main__':
