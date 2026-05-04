@@ -78,6 +78,20 @@ python generate_new_data.py                        # generate approx. 200 augmen
 ```
 
 ---
+## tmux
+start tmux terminal:
+LD_LIBRARY_PATH="" sudo renice -n 0 $$ && tmux new -s peract-train
+
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True python train.py 2>&1 | tee train_run.log
+
+to detach from tmux: `Ctrl+b` then `d`
+
+reattach to tmux:
+LD_LIBRARY_PATH="" tmux attach -t peract-train
+
+to kill tmux session: `Ctrl+b` then `x` (confirm with `y`)
+or 
+LD_LIBRARY_PATH="" tmux kill-session -t peract
 
 ## Credits
 
