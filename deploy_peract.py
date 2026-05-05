@@ -28,10 +28,10 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from agents.peract_bc.launch_utils import create_agent
 
-TASK_DESC      = "pick up the dark blue bottle and place it"
+TASK_DESC      = "pick up the dark blue bottle"
 IMAGE_SIZE     = (128, 128)
 CAMERAS        = ['wrist', 'overhead']
-SCENE_BOUNDS   = [0.15, -0.35, 0.10, 0.55, 0.30, 0.75]
+SCENE_BOUNDS   = [0.15, -0.35, 0.10, 0.45, 0.30, 0.75]
 DEVICE         = 'cuda:0'
 EPISODE_LENGTH = 50
 

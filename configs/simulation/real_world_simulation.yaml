@@ -64,7 +64,7 @@ generation:
   generate_data: True # True if load_trajectory is True
   scale: 4
   save_images: True
-  rotate_environment: True
+  rotate_environment: False
   rotate_environment_step: 30
   rotate_environment_min: -90
   rotate_environment_max: 91
@@ -73,7 +73,7 @@ generation:
   # rotation_center: [0.3537, -0.1311, 0.2534]    # gello_bottle3 center
   # rotation_center: [0.4212, -0.1957, 0.2534]    # gello_bottle4 center
   translate_environment: False
-  translation_values: [0, 0.15, -0.15]
+  translation_values: [0]
   rotate_objects: True
-  rotation_objects_step: 20
+  rotation_objects_step: 7
   threshold: 0.035
