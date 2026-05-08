@@ -31,7 +31,7 @@ from agents.peract_bc.launch_utils import create_agent
 TASK_DESC      = "pick up the dark blue bottle"
 IMAGE_SIZE     = (128, 128)
 CAMERAS        = ['wrist', 'overhead']
-SCENE_BOUNDS   = [0.15, -0.35, 0.10, 0.45, 0.30, 0.75]
+SCENE_BOUNDS   = [0.15, -0.35, 0.20, 0.47, 0.30, 0.70]
 DEVICE         = 'cuda:0'
 EPISODE_LENGTH = 50
 

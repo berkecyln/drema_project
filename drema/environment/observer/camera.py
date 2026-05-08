@@ -163,7 +163,8 @@ class CameraManager:
             rotation = R_w2c.T # R_c2w
             translation = t_w2c
 
-            # increases the dimensions of the intrinsics
+            # scale a copy so the trajectory's stored intrinsics are not mutated
+            intrinsics = intrinsics.copy()
             intrinsics[:2, :] *= scale
 
             # use stored image dimensions; fall back to cx*2/cy*2 for legacy data

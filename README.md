@@ -22,6 +22,9 @@ The original codebase computed intrinsics from image width and height and assume
 
 A second instance of the same bug existed in the data generation renderer (`generate_new_data.py` → `drema/environment/observer/camera.py`): image width and height were inferred as `cx*2` and `cy*2`, which only holds if the lens is perfectly centered. For a flipped D415 with `cy≈122` in a 640×360 image, this produced wrong 654×244 renders. Fixed by storing the actual image dimensions in `dictionary.pkl` (read from the recorded `images/` directory in `prepare_scene_for_generation.py`) and using them in the renderer.
 
+### Camera intrinsics in-place mutation bug fixed
+`load_cameras_from_trajectory` in `drema/environment/observer/camera.py` scaled intrinsics with `intrinsics[:2,:] *= scale`, which mutated the numpy array in-place. Because the array was a direct reference into `trajectory.demo`, this corrupted the stored intrinsics (4× too large) in the trajectory object. Episode 0 was saved right after this call and therefore stored wrong intrinsics; augmented episodes were unaffected because `env.reset()` reloads the trajectory from disk before saving. Fixed by adding `.copy()` before scaling so the trajectory's stored values are never modified.
+
 ### Wrist camera per-step extrinsics
 `generate_new_data.py` now writes the FK-derived `T_w2c` for the wrist camera into each step of the saved `generated_trajectory.pkl`. Previously all steps stored the static initial-pose extrinsics. The overhead camera is physically fixed so its stored extrinsics are correct throughout.
 
