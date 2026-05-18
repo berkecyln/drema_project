@@ -1,5 +1,5 @@
 visualization:
-  visualize: False
+  visualize: True
   visualize_training_cameras: False
   visualize_trajectory_cameras: True
   pybullet_camera: False

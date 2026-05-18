@@ -59,7 +59,7 @@ def _wrist_T_w2c(robot, T_tcp_cam):
 
 
 def build_obs_dict(cam_manager, robot, K_wrist, K_overhead, T_tcp_cam,
-                   T_overhead_w2c, lang_tokens, step, device):
+                   T_overhead_w2c, lang_tokens, step, device, overhead_mask):
     images = cam_manager.get_images()
     state  = robot.get_state()
 
@@ -67,6 +67,10 @@ def build_obs_dict(cam_manager, robot, K_wrist, K_overhead, T_tcp_cam,
     rgb_o = np.array(PILImage.fromarray(images['rgb_static']).resize(IMAGE_SIZE))
     dep_o = np.array(PILImage.fromarray(images['depth_static']).resize(IMAGE_SIZE, PILImage.NEAREST))
     dep_w = np.array(PILImage.fromarray(images['depth_gripper']).resize(IMAGE_SIZE, PILImage.NEAREST))
+
+    # zero out regions that were always black in training (static camera, fixed mask)
+    rgb_o[~overhead_mask] = 0
+    dep_o[~overhead_mask] = 0
 
     dep_o_m = dep_o.astype(np.float32)
     dep_w_m = dep_w.astype(np.float32)
@@ -163,6 +167,10 @@ def main():
 
     K_wrist, T_tcp_cam, K_overhead, T_overhead_w2c = load_calibration(cam_manager)
 
+    overhead_mask = np.load(
+        os.path.join(PROJECT_ROOT, 'assets/calibration/overhead_mask_128x128.npy')
+    )  # bool (128,128), True = valid pixel
+
     from robot_io.utils.utils import restrict_workspace
     workspace_limits = robot_cfg.workspace_limits
 
@@ -173,7 +181,7 @@ def main():
     print(f"Deploying PerAct: '{TASK_DESC}'")
     for step in range(args.steps):
         obs = build_obs_dict(cam_manager, robot, K_wrist, K_overhead, T_tcp_cam,
-                             T_overhead_w2c, lang_tokens, step, device)
+                             T_overhead_w2c, lang_tokens, step, device, overhead_mask)
 
         with torch.no_grad():
             result = agent.act(step, obs, deterministic=True)
