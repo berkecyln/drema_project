@@ -4,8 +4,8 @@ Real-robot PerAct inference.
 Usage:
     conda activate robotio
     python deploy_peract.py \
-        --weights  logs/peract/bottle_pickup/PERACT_BC/seed0/weights \
-        --config   logs/peract/bottle_pickup/PERACT_BC/seed0/config.yaml
+        --weights  logs/peract_v2/bottle_pickup/PERACT_BC/seed0/weights \
+        --config   logs/peract_v2/bottle_pickup/PERACT_BC/seed0/config.yaml
 
 The weights dir contains one .pt file per attention layer (e.g. QAttentionPerActBCAgent_layer0.pt).
 The config is the hydra config saved automatically during training.
@@ -59,21 +59,24 @@ def _wrist_T_w2c(robot, T_tcp_cam):
 
 
 def build_obs_dict(cam_manager, robot, K_wrist, K_overhead, T_tcp_cam,
-                   T_overhead_w2c, lang_tokens, step, device):
+                   T_overhead_w2c, lang_tokens, step, device,
+                   overhead_only=False):
     images = cam_manager.get_images()
     state  = robot.get_state()
 
-    rgb_w = np.array(PILImage.fromarray(images['rgb_gripper']).resize(IMAGE_SIZE))
     rgb_o = np.array(PILImage.fromarray(images['rgb_static']).resize(IMAGE_SIZE))
     dep_o = np.array(PILImage.fromarray(images['depth_static']).resize(IMAGE_SIZE, PILImage.NEAREST))
-    dep_w = np.array(PILImage.fromarray(images['depth_gripper']).resize(IMAGE_SIZE, PILImage.NEAREST))
-
     dep_o_m = dep_o.astype(np.float32)
-    dep_w_m = dep_w.astype(np.float32)
-
-    T_wrist_w2c = _wrist_T_w2c(robot, T_tcp_cam)
     pcd_o = _backproject(dep_o_m, K_overhead, T_overhead_w2c)
-    pcd_w = _backproject(dep_w_m, K_wrist,    T_wrist_w2c)
+
+    if overhead_only:
+        rgb_w, pcd_w, K_w, T_w = rgb_o, pcd_o, K_overhead, T_overhead_w2c
+    else:
+        rgb_w = np.array(PILImage.fromarray(images['rgb_gripper']).resize(IMAGE_SIZE))
+        dep_w = np.array(PILImage.fromarray(images['depth_gripper']).resize(IMAGE_SIZE, PILImage.NEAREST))
+        T_wrist_w2c = _wrist_T_w2c(robot, T_tcp_cam)
+        pcd_w = _backproject(dep_w.astype(np.float32), K_wrist, T_wrist_w2c)
+        K_w, T_w = K_wrist, T_wrist_w2c
 
     grip_open   = float(state['gripper_opening_width'] >= 0.078)
     # training data uses discrete [0.04, 0.04] / [0.0, 0.0], not continuous width/2
@@ -87,7 +90,7 @@ def build_obs_dict(cam_manager, robot, K_wrist, K_overhead, T_tcp_cam,
 
     obs = {}
     for cam, rgb, pcd, K, T in [
-        ('wrist',    rgb_w, pcd_w, K_wrist,   T_wrist_w2c),
+        ('wrist',    rgb_w, pcd_w, K_w,       T_w),
         ('overhead', rgb_o, pcd_o, K_overhead, T_overhead_w2c),
     ]:
         # PreprocessAgent normalizes [0,255]→[-1,1] internally, so pass raw uint8 values
@@ -119,7 +122,7 @@ def load_calibration(cam_manager):
 
     # T_robot_cam = T_c2w (camera-to-world), invert to get T_w2c for backprojection
     T_overhead = np.linalg.inv(
-        np.load(os.path.join(calib, 'panda_azure_kinect_323922212_T_robot_cam_2026_04_27__12_12.npy'))
+        np.load('/home/ceylanb/robot/robot_io/calibration/calibration_files/panda_azure_kinect_323922212_T_robot_cam_2026_05_11__12_27.npy')
     ).astype(np.float32)
     K_overhead = np.load(os.path.join(calib, 'kinect_overhead_intrinsics.npy')).astype(np.float32)
 
@@ -139,6 +142,8 @@ def main():
     parser.add_argument('--config', required=True,
                         help='Path to .hydra/config.yaml saved during training')
     parser.add_argument('--steps', type=int, default=EPISODE_LENGTH)
+    parser.add_argument('--overhead-only', action='store_true',
+                        help='Use only the overhead camera (duplicate for wrist slot)')
     args = parser.parse_args()
 
     device = torch.device(DEVICE)
@@ -173,7 +178,32 @@ def main():
     print(f"Deploying PerAct: '{TASK_DESC}'")
     for step in range(args.steps):
         obs = build_obs_dict(cam_manager, robot, K_wrist, K_overhead, T_tcp_cam,
-                             T_overhead_w2c, lang_tokens, step, device)
+                             T_overhead_w2c, lang_tokens, step, device,
+                             overhead_only=args.overhead_only)
+
+        # --- debug: save raw camera images on step 0 for train/deploy comparison ---
+        if step == 0:
+            import cv2, os
+            _dbg = '/tmp/peract_debug'
+            os.makedirs(_dbg, exist_ok=True)
+            _imgs = cam_manager.get_images()
+            cv2.imwrite(f'{_dbg}/overhead_rgb.png',  _imgs['rgb_static'][:, :, ::-1])
+            cv2.imwrite(f'{_dbg}/wrist_rgb.png',     _imgs['rgb_gripper'][:, :, ::-1])
+            _dep_o = (_imgs['depth_static'] * 1000).clip(0, 65535).astype(np.uint16)
+            _dep_w = (_imgs['depth_gripper'] * 1000).clip(0, 65535).astype(np.uint16)
+            cv2.imwrite(f'{_dbg}/overhead_depth.png', _dep_o)
+            cv2.imwrite(f'{_dbg}/wrist_depth.png',    _dep_w)
+            # also save the point cloud xyz ranges for sanity check
+            _pcd_o = obs['overhead_point_cloud'][0, 0].cpu().numpy()  # (3, H, W)
+            _pcd_w = obs['wrist_point_cloud'][0, 0].cpu().numpy()
+            print(f"  [debug] overhead pcd x:[{_pcd_o[0].min():.3f},{_pcd_o[0].max():.3f}]"
+                  f" y:[{_pcd_o[1].min():.3f},{_pcd_o[1].max():.3f}]"
+                  f" z:[{_pcd_o[2].min():.3f},{_pcd_o[2].max():.3f}]")
+            print(f"  [debug] wrist   pcd x:[{_pcd_w[0].min():.3f},{_pcd_w[0].max():.3f}]"
+                  f" y:[{_pcd_w[1].min():.3f},{_pcd_w[1].max():.3f}]"
+                  f" z:[{_pcd_w[2].min():.3f},{_pcd_w[2].max():.3f}]")
+            print(f"  [debug] images saved to {_dbg}/")
+        # -------------------------------------------------------------------------
 
         with torch.no_grad():
             result = agent.act(step, obs, deterministic=True)
@@ -185,9 +215,10 @@ def main():
 
         pos   = restrict_workspace(workspace_limits, pos)
         euler = ScipyRotation.from_quat(quat).as_euler('xyz', degrees=True)
-        print(f"  step {step:02d}  pos={np.round(pos,3)}  euler_deg={np.round(euler,1)}  grip={'open' if grip_open else 'close'}")
+        print(f"  step {step:02d}  pos={np.round(pos,3)}  euler_deg={np.round(euler,1)}  grip={'open' if grip_open else 'close'}"
+              f"  raw_pos={np.round(action[:3],3)}")
 
-        # LIN applies NE_T_EE internally (same as scanner/arch code) — PTP skips it, giving wrong orientation
+        # LIN applies NE_T_EE internally (same as scanner/arch code)
         robot.move_cart_pos_abs_lin(pos, quat)
 
         if grip_open:

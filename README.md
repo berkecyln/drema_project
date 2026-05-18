@@ -93,7 +93,11 @@ python RLBench/tools/prepare_data_for_peract.py --cameras wrist overhead
 start tmux terminal:
 LD_LIBRARY_PATH="" sudo renice -n 0 $$ && tmux new -s peract-train
 
+export DISPLAY=:0
+export PYOPENGL_PLATFORM=egl
+rm -rf /tmp/arm/replay
 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True python train.py 2>&1 | tee train_run.log
+
 
 to detach from tmux: `Ctrl+b` then `d`
 
