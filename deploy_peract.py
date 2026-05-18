@@ -60,12 +60,17 @@ def _wrist_T_w2c(robot, T_tcp_cam):
 
 def build_obs_dict(cam_manager, robot, K_wrist, K_overhead, T_tcp_cam,
                    T_overhead_w2c, lang_tokens, step, device,
-                   overhead_only=False):
+                   overhead_only=False, overhead_mask=None):
     images = cam_manager.get_images()
     state  = robot.get_state()
 
     rgb_o = np.array(PILImage.fromarray(images['rgb_static']).resize(IMAGE_SIZE))
     dep_o = np.array(PILImage.fromarray(images['depth_static']).resize(IMAGE_SIZE, PILImage.NEAREST))
+
+    if overhead_mask is not None:
+        rgb_o[~overhead_mask] = 0
+        dep_o[~overhead_mask] = 0
+
     dep_o_m = dep_o.astype(np.float32)
     pcd_o = _backproject(dep_o_m, K_overhead, T_overhead_w2c)
 
@@ -168,6 +173,10 @@ def main():
 
     K_wrist, T_tcp_cam, K_overhead, T_overhead_w2c = load_calibration(cam_manager)
 
+    overhead_mask = np.load(
+        os.path.join(PROJECT_ROOT, 'assets/calibration/overhead_mask_128x128.npy')
+    )  # bool (128,128), True = valid pixel
+
     from robot_io.utils.utils import restrict_workspace
     workspace_limits = robot_cfg.workspace_limits
 
@@ -179,7 +188,8 @@ def main():
     for step in range(args.steps):
         obs = build_obs_dict(cam_manager, robot, K_wrist, K_overhead, T_tcp_cam,
                              T_overhead_w2c, lang_tokens, step, device,
-                             overhead_only=args.overhead_only)
+                             overhead_only=args.overhead_only,
+                             overhead_mask=overhead_mask)
 
         # --- debug: save raw camera images on step 0 for train/deploy comparison ---
         if step == 0:
@@ -193,7 +203,6 @@ def main():
             _dep_w = (_imgs['depth_gripper'] * 1000).clip(0, 65535).astype(np.uint16)
             cv2.imwrite(f'{_dbg}/overhead_depth.png', _dep_o)
             cv2.imwrite(f'{_dbg}/wrist_depth.png',    _dep_w)
-            # also save the point cloud xyz ranges for sanity check
             _pcd_o = obs['overhead_point_cloud'][0, 0].cpu().numpy()  # (3, H, W)
             _pcd_w = obs['wrist_point_cloud'][0, 0].cpu().numpy()
             print(f"  [debug] overhead pcd x:[{_pcd_o[0].min():.3f},{_pcd_o[0].max():.3f}]"
