@@ -15,11 +15,12 @@ class BaseMover(ABC):
     MOVE_RETRIES = 2
     RETRY_DELAY = 1.0
 
-    def __init__(self, robot, cam_manager, T_tcp_cam, output_dir):
+    def __init__(self, robot, cam_manager, T_tcp_cam, output_dir, save_frames=True):
         self.robot = robot
         self.cam_manager = cam_manager
         self.T_tcp_cam = T_tcp_cam
         self.output_dir = output_dir
+        self.save_frames = save_frames
 
     @abstractmethod
     def generate_path(self, cfg) -> list:
@@ -75,6 +76,8 @@ class BaseMover(ABC):
                 skipped += 1
                 continue
             time.sleep(self.STEP_SLEEP)
-            self._capture(idx, task_dir)
+            if self.save_frames:
+                self._capture(idx, task_dir)
 
-        print(f"Done. Saved to: {task_dir}" + (f" ({skipped} frames skipped)" if skipped else ""))
+        print(f"Done. Output dir: {task_dir}" + (f" ({skipped} frames skipped)" if skipped else ""))
+        return task_dir

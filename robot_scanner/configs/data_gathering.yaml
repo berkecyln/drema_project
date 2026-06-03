@@ -1,7 +1,7 @@
 defaults:
   - robot: panda_franky_interface_policy
   - cams: camera_manager
-  - movement: gello_replay
+  - movement: arch
   - _self_
 
 hydra:
@@ -10,3 +10,16 @@ hydra:
 
 output_dir: /home/ceylanb/DreMa/drema_project/input
 calibration_file: /home/ceylanb/robot/robot_io/robot_io/calibration/calibration_files/panda_realsenseD435_T_tcp_cam.npy
+
+# Recording flags
+record_frames: true   # save Kinect overhead PNG frames during replay
+save_frames: false    # if false, robot replays without saving rgb/depth/pose per waypoint
+
+# Native-res Kinect (720p, no resize) for overhead capture.
+cams:
+  static_cam:
+    resolution: '720p'
+    resize_resolution: null
+    fps: 5
+    align_depth_to_color: false
+    undistort_image: false

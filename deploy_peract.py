@@ -4,8 +4,8 @@ Real-robot PerAct inference.
 Usage:
     conda activate robotio
     python deploy_peract.py \
-        --weights  logs/peract_v2/bottle_pickup/PERACT_BC/seed0/weights \
-        --config   logs/peract_v2/bottle_pickup/PERACT_BC/seed0/config.yaml
+        --weights  logs/peract_100voxel_gripperweight15/bottle_pickup/PERACT_BC/seed0/weights/89900 \
+        --config   logs/peract_100voxel_gripperweight15/bottle_pickup/PERACT_BC/seed0/config.yaml
 
 The weights dir contains one .pt file per attention layer (e.g. QAttentionPerActBCAgent_layer0.pt).
 The config is the hydra config saved automatically during training.
@@ -58,30 +58,68 @@ def _wrist_T_w2c(robot, T_tcp_cam):
     return np.linalg.inv(T_world_cam).astype(np.float32)
 
 
+def _update_dashboard(panels, step, grip_open):
+    import cv2
+    SCALE  = 3          # 128 → 384 px per image
+    W = H  = IMAGE_SIZE[0] * SCALE
+    HDR    = 26         # pixel height of label strip above each image
+
+    def _label(img_bgr, text):
+        bar = np.zeros((HDR, W, 3), dtype=np.uint8)
+        cv2.putText(bar, text, (4, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (210, 210, 210), 1, cv2.LINE_AA)
+        return np.concatenate([bar, img_bgr], axis=0)
+
+    rows = []
+    for cam_label, rgb_raw, rgb_masked in panels:
+        raw_bgr    = cv2.resize(rgb_raw[:, :, ::-1],    (W, H), interpolation=cv2.INTER_NEAREST)
+        masked_bgr = cv2.resize(rgb_masked[:, :, ::-1], (W, H), interpolation=cv2.INTER_NEAREST)
+        row = np.concatenate([_label(raw_bgr,    f'{cam_label}  raw'),
+                              _label(masked_bgr, f'{cam_label}  masked')], axis=1)
+        rows.append(row)
+
+    dashboard = np.concatenate(rows, axis=0)
+
+    status = np.zeros((28, dashboard.shape[1], 3), dtype=np.uint8)
+    cv2.putText(status, f'step {step:02d}   gripper: {"OPEN" if grip_open else "CLOSE"}',
+                (8, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (120, 220, 120), 1, cv2.LINE_AA)
+    dashboard = np.concatenate([dashboard, status], axis=0)
+
+    cv2.imshow('PerAct Deploy', dashboard)
+    cv2.waitKey(1)
+
+
 def build_obs_dict(cam_manager, robot, K_wrist, K_overhead, T_tcp_cam,
                    T_overhead_w2c, lang_tokens, step, device,
-                   overhead_only=False, overhead_mask=None):
+                   overhead_only=False, wrist_only=False, overhead_mask=None,
+                   show_dashboard=False):
     images = cam_manager.get_images()
     state  = robot.get_state()
 
-    rgb_o = np.array(PILImage.fromarray(images['rgb_static']).resize(IMAGE_SIZE))
-    dep_o = np.array(PILImage.fromarray(images['depth_static']).resize(IMAGE_SIZE, PILImage.NEAREST))
+    rgb_w = np.array(PILImage.fromarray(images['rgb_gripper']).resize(IMAGE_SIZE))
+    dep_w = np.array(PILImage.fromarray(images['depth_gripper']).resize(IMAGE_SIZE, PILImage.NEAREST))
+    T_wrist_w2c = _wrist_T_w2c(robot, T_tcp_cam)
+    pcd_w = _backproject(dep_w.astype(np.float32), K_wrist, T_wrist_w2c)
+    K_w, T_w = K_wrist, T_wrist_w2c
 
-    if overhead_mask is not None:
-        rgb_o[~overhead_mask] = 0
-        dep_o[~overhead_mask] = 0
+    if wrist_only:
+        # model trained without overhead — zero out overhead slot so no unseen data leaks in
+        rgb_o_raw = np.zeros((*IMAGE_SIZE[::-1], 3), dtype=np.uint8)
+        rgb_o     = rgb_o_raw
+        dep_o     = np.zeros(IMAGE_SIZE[::-1], dtype=np.uint8)
+        pcd_o     = np.zeros((*IMAGE_SIZE[::-1], 3), dtype=np.float32)
+    else:
+        rgb_o_raw = np.array(PILImage.fromarray(images['rgb_static']).resize(IMAGE_SIZE))
+        rgb_o     = rgb_o_raw.copy()
+        dep_o     = np.array(PILImage.fromarray(images['depth_static']).resize(IMAGE_SIZE, PILImage.NEAREST))
 
-    dep_o_m = dep_o.astype(np.float32)
-    pcd_o = _backproject(dep_o_m, K_overhead, T_overhead_w2c)
+        if overhead_mask is not None:
+            rgb_o[~overhead_mask] = 0
+            dep_o[~overhead_mask] = 0
+
+        pcd_o = _backproject(dep_o.astype(np.float32), K_overhead, T_overhead_w2c)
 
     if overhead_only:
         rgb_w, pcd_w, K_w, T_w = rgb_o, pcd_o, K_overhead, T_overhead_w2c
-    else:
-        rgb_w = np.array(PILImage.fromarray(images['rgb_gripper']).resize(IMAGE_SIZE))
-        dep_w = np.array(PILImage.fromarray(images['depth_gripper']).resize(IMAGE_SIZE, PILImage.NEAREST))
-        T_wrist_w2c = _wrist_T_w2c(robot, T_tcp_cam)
-        pcd_w = _backproject(dep_w.astype(np.float32), K_wrist, T_wrist_w2c)
-        K_w, T_w = K_wrist, T_wrist_w2c
 
     grip_open   = float(state['gripper_opening_width'] >= 0.078)
     # training data uses discrete [0.04, 0.04] / [0.0, 0.0], not continuous width/2
@@ -109,6 +147,31 @@ def build_obs_dict(cam_manager, robot, K_wrist, K_overhead, T_tcp_cam,
         dtype=torch.float32, device=device)
     obs['ignore_collisions'] = torch.tensor([[[0.0]]], dtype=torch.float32, device=device)
     obs['lang_goal_tokens']  = lang_tokens.to(device)
+
+    if step == 0:
+        import cv2
+        _dbg = '/tmp/peract_debug'
+        os.makedirs(_dbg, exist_ok=True)
+        cv2.imwrite(f'{_dbg}/overhead_rgb.png',   rgb_o[:, :, ::-1])
+        cv2.imwrite(f'{_dbg}/wrist_rgb.png',      rgb_w[:, :, ::-1])
+        cv2.imwrite(f'{_dbg}/overhead_depth.png', (dep_o * 1000).clip(0, 65535).astype(np.uint16))
+        cv2.imwrite(f'{_dbg}/wrist_depth.png',    (dep_w * 1000).clip(0, 65535).astype(np.uint16))
+        _pcd_o = obs['overhead_point_cloud'][0, 0].cpu().numpy()
+        _pcd_w = obs['wrist_point_cloud'][0, 0].cpu().numpy()
+        print(f"  [debug] overhead pcd x:[{_pcd_o[0].min():.3f},{_pcd_o[0].max():.3f}]"
+              f" y:[{_pcd_o[1].min():.3f},{_pcd_o[1].max():.3f}]"
+              f" z:[{_pcd_o[2].min():.3f},{_pcd_o[2].max():.3f}]")
+        print(f"  [debug] wrist   pcd x:[{_pcd_w[0].min():.3f},{_pcd_w[0].max():.3f}]"
+              f" y:[{_pcd_w[1].min():.3f},{_pcd_w[1].max():.3f}]"
+              f" z:[{_pcd_w[2].min():.3f},{_pcd_w[2].max():.3f}]")
+        print(f"  [debug] images saved to {_dbg}/")
+
+    if show_dashboard:
+        panels = []
+        if not wrist_only:
+            panels.append(('overhead', rgb_o_raw, rgb_o))
+        panels.append(('wrist', rgb_w, rgb_w))  # wrist has no mask
+        _update_dashboard(panels, step, grip_open)
 
     return obs
 
@@ -149,6 +212,8 @@ def main():
     parser.add_argument('--steps', type=int, default=EPISODE_LENGTH)
     parser.add_argument('--overhead-only', action='store_true',
                         help='Use only the overhead camera (duplicate for wrist slot)')
+    parser.add_argument('--wrist-only', action='store_true',
+                        help='Use only the wrist camera (duplicate for overhead slot)')
     args = parser.parse_args()
 
     device = torch.device(DEVICE)
@@ -180,39 +245,30 @@ def main():
     from robot_io.utils.utils import restrict_workspace
     workspace_limits = robot_cfg.workspace_limits
 
+    import cv2
     print(f"Moving to neutral and opening gripper...")
     robot.move_to_neutral()
     robot.open_gripper(blocking=True)
 
     print(f"Deploying PerAct: '{TASK_DESC}'")
+    print("Dashboard open. Arrange the scene, then press any key in the dashboard window to start.")
+    # show first frame so user can verify scene before execution begins
+    _first_obs = build_obs_dict(cam_manager, robot, K_wrist, K_overhead, T_tcp_cam,
+                                T_overhead_w2c, lang_tokens, 0, device,
+                                overhead_only=args.overhead_only,
+                                wrist_only=args.wrist_only,
+                                overhead_mask=overhead_mask,
+                                show_dashboard=True)
+    cv2.waitKey(0)  # block until any key pressed
+
+    MAX_RETRIES = 3
     for step in range(args.steps):
         obs = build_obs_dict(cam_manager, robot, K_wrist, K_overhead, T_tcp_cam,
                              T_overhead_w2c, lang_tokens, step, device,
                              overhead_only=args.overhead_only,
-                             overhead_mask=overhead_mask)
-
-        # --- debug: save raw camera images on step 0 for train/deploy comparison ---
-        if step == 0:
-            import cv2, os
-            _dbg = '/tmp/peract_debug'
-            os.makedirs(_dbg, exist_ok=True)
-            _imgs = cam_manager.get_images()
-            cv2.imwrite(f'{_dbg}/overhead_rgb.png',  _imgs['rgb_static'][:, :, ::-1])
-            cv2.imwrite(f'{_dbg}/wrist_rgb.png',     _imgs['rgb_gripper'][:, :, ::-1])
-            _dep_o = (_imgs['depth_static'] * 1000).clip(0, 65535).astype(np.uint16)
-            _dep_w = (_imgs['depth_gripper'] * 1000).clip(0, 65535).astype(np.uint16)
-            cv2.imwrite(f'{_dbg}/overhead_depth.png', _dep_o)
-            cv2.imwrite(f'{_dbg}/wrist_depth.png',    _dep_w)
-            _pcd_o = obs['overhead_point_cloud'][0, 0].cpu().numpy()  # (3, H, W)
-            _pcd_w = obs['wrist_point_cloud'][0, 0].cpu().numpy()
-            print(f"  [debug] overhead pcd x:[{_pcd_o[0].min():.3f},{_pcd_o[0].max():.3f}]"
-                  f" y:[{_pcd_o[1].min():.3f},{_pcd_o[1].max():.3f}]"
-                  f" z:[{_pcd_o[2].min():.3f},{_pcd_o[2].max():.3f}]")
-            print(f"  [debug] wrist   pcd x:[{_pcd_w[0].min():.3f},{_pcd_w[0].max():.3f}]"
-                  f" y:[{_pcd_w[1].min():.3f},{_pcd_w[1].max():.3f}]"
-                  f" z:[{_pcd_w[2].min():.3f},{_pcd_w[2].max():.3f}]")
-            print(f"  [debug] images saved to {_dbg}/")
-        # -------------------------------------------------------------------------
+                             wrist_only=args.wrist_only,
+                             overhead_mask=overhead_mask,
+                             show_dashboard=True)
 
         with torch.no_grad():
             result = agent.act(step, obs, deterministic=True)
@@ -227,13 +283,26 @@ def main():
         print(f"  step {step:02d}  pos={np.round(pos,3)}  euler_deg={np.round(euler,1)}  grip={'open' if grip_open else 'close'}"
               f"  raw_pos={np.round(action[:3],3)}")
 
-        # LIN applies NE_T_EE internally (same as scanner/arch code)
-        robot.move_cart_pos_abs_lin(pos, quat)
+        for attempt in range(MAX_RETRIES):
+            try:
+                # LIN applies NE_T_EE internally (same as scanner/arch code)
+                robot.move_cart_pos_abs_lin(pos, quat)
+                break
+            except Exception as e:
+                print(f"  [warn] move failed (attempt {attempt+1}/{MAX_RETRIES}): {e}")
+                if attempt + 1 == MAX_RETRIES:
+                    print("  [error] max retries reached, moving to neutral and stopping.")
+                    robot.move_to_neutral()
+                    cv2.destroyAllWindows()
+                    return
+                print("  [retry] retry...")
 
         if grip_open:
             robot.open_gripper(blocking=True)
         else:
             robot.close_gripper(blocking=True)
+
+    cv2.destroyAllWindows()
 
 
 if __name__ == '__main__':

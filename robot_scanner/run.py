@@ -14,6 +14,7 @@ import hydra
 from omegaconf import DictConfig
 
 from robot_scanner.core.robot_utils import recover_to_center, print_robot_position
+from robot_scanner.core.video_recorder import KinectFrameRecorder
 from robot_scanner.movements.arch import ArchMover
 from robot_scanner.movements.orbit import OrbitMover
 from robot_scanner.movements.line_scan import LineScanMover
@@ -50,11 +51,24 @@ def main(cfg: DictConfig):
             raise ValueError(f"Unknown movement type: '{cfg.movement.type}'. Choose from: {list(MOVERS)}")
 
         output_dir = cfg.get("output_dir", os.path.join(DREMA_PROJECT_PATH, "input"))
-        mover = mover_cls(robot, cam_manager, T_tcp_cam, output_dir)
+        mover = mover_cls(robot, cam_manager, T_tcp_cam, output_dir,
+                          save_frames=cfg.get("save_frames", True))
 
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         task_name = f"task_{cfg.movement.type}_{ts}"
-        mover.execute(cfg.movement, task_name)
+
+        recorder = None
+        if cfg.get("record_frames", False):
+            task_dir = os.path.join(output_dir, task_name)
+            os.makedirs(task_dir, exist_ok=True)
+            recorder = KinectFrameRecorder(cam_manager.static_cam, os.path.join(task_dir, "overhead"))
+            recorder.start()
+
+        try:
+            mover.execute(cfg.movement, task_name)
+        finally:
+            if recorder is not None:
+                recorder.stop()
 
         print_robot_position(robot, "Final")
         recover_to_center(robot)

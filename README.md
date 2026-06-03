@@ -91,7 +91,8 @@ python RLBench/tools/prepare_data_for_peract.py --cameras wrist overhead
 ---
 ## tmux
 start tmux terminal:
-LD_LIBRARY_PATH="" sudo renice -n 0 $$ && tmux new -s peract-train
+sudo renice -n 0 $$ && LD_LIBRARY_PATH="" tmux new -s peract-train
+
 
 export DISPLAY=:0
 export PYOPENGL_PLATFORM=egl
