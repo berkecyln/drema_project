@@ -33,6 +33,15 @@ def main(cfg: DictConfig) -> None:
 
     frequency_logger = LoopFrequencyLogger(log_interval=1.0)
 
+    orbit_yaw = 0
+    orbit_writer = None
+    if cfg.simulation.visualization.orbit_camera and cfg.simulation.visualization.record_orbit_video:
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        orbit_writer = cv2.VideoWriter(
+            cfg.simulation.visualization.orbit_video_path,
+            fourcc, 30, (640, 480)
+        )
+
     #objs, bodies = visualize_trajectory(env.client, env.trajectory)
     key_listener.start_listener()
 
@@ -75,6 +84,38 @@ def main(cfg: DictConfig) -> None:
         # update the environment
         env.update_state()
 
+        if cfg.simulation.visualization.orbit_camera:
+            import pybullet
+            orbit_yaw += cfg.simulation.visualization.orbit_camera_speed
+            view_matrix = pybullet.computeViewMatrixFromYawPitchRoll(
+                cameraTargetPosition=cfg.simulation.visualization.orbit_camera_target,
+                distance=cfg.simulation.visualization.orbit_camera_distance,
+                yaw=orbit_yaw,
+                pitch=cfg.simulation.visualization.orbit_camera_pitch,
+                roll=0,
+                upAxisIndex=2
+            )
+            proj_matrix = pybullet.computeProjectionMatrixFOV(
+                fov=60, aspect=640/480, nearVal=0.01, farVal=10.0
+            )
+            _, _, orbit_rgb, _, _ = pybullet.getCameraImage(
+                640, 480, viewMatrix=view_matrix, projectionMatrix=proj_matrix,
+                renderer=pybullet.ER_TINY_RENDERER
+            )
+            orbit_frame = cv2.cvtColor(
+                np.array(orbit_rgb, dtype=np.uint8).reshape(480, 640, 4)[:, :, :3],
+                cv2.COLOR_RGB2BGR
+            )
+            cv2.imshow("Orbit View", orbit_frame)
+            cv2.waitKey(1)
+            if orbit_writer is not None:
+                orbit_writer.write(orbit_frame)
+            if orbit_yaw >= 360 * cfg.simulation.visualization.orbit_loops:
+                orbit_writer.release()
+                print(f"Orbit recording done. Saved to: {cfg.simulation.visualization.orbit_video_path}")
+                orbit_writer = None
+                break
+
         # if the simulation is visualized
         if cfg.simulation.visualization.visualize:
 
@@ -100,6 +141,9 @@ def main(cfg: DictConfig) -> None:
 
         # log the frequency
         frequency_logger.log_frequency()
+
+    if orbit_writer is not None:
+        orbit_writer.release()
 
 if __name__ == "__main__":
     main()
