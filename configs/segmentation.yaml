@@ -18,9 +18,6 @@ grounded_sam:
   # Text prompts for object detection
   object_prompts:
     - "red cube"
-    #- "green cup"
-    #- "orange cup"
-    #- "yellow lego"
   
   table_prompt: "table"
   
@@ -55,9 +52,7 @@ sam3_video:
   labels:
     - "table"
     - "dark blue bottle"
-    #- "green cup"
-    #- "orange cup"
-    #- "yellow lego"
+
   # Path to visual_prompts.yaml; if null, looks for <input_folder>/visual_prompts.yaml
   visual_prompts_file: null
   propagation_direction: "both"  # "forward", "backward", or "both"

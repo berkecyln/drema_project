@@ -16,7 +16,6 @@ import glob
 import cv2
 import numpy as np
 
-# ============ CONFIGURATION ============
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 INPUT_DIR = os.path.join(PROJECT_DIR, "input", "gold_data_undistort")
 
@@ -25,7 +24,6 @@ COLMAP_DIST_COEFFS = np.array([0.12388585, -0.27043119, 0.00075885, -0.00004048]
 
 # alpha=0: crop to valid pixels (no black borders), alpha=1: keep all pixels
 ALPHA = 0
-# =======================================
 
 
 def load_dist_coeffs(input_dir):

@@ -246,7 +246,7 @@ def main():
     workspace_limits = robot_cfg.workspace_limits
 
     import cv2
-    print(f"Moving to neutral and opening gripper...")
+    print("Moving to neutral and opening gripper...")
     robot.move_to_neutral()
     robot.open_gripper(blocking=True)
 

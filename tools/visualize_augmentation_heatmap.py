@@ -54,7 +54,6 @@ def collect_episodes(scene_dir):
                 ep_id = int(os.path.basename(os.path.dirname(p)).replace('episode', ''))
                 pos  = step['gripper_pose'][:2]
                 yaw  = ScipyR.from_quat(step['gripper_pose'][3:]).as_euler('xyz')[2]
-                entry = (pos, yaw)
                 pos = np.array([
                     np.clip(pos[0], X_MIN, X_MAX),
                     np.clip(pos[1], Y_MIN, Y_MAX),

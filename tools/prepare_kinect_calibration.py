@@ -16,7 +16,7 @@ import os
 import sys
 import numpy as np
 
-# ── Configuration ─────────────────────────────────────────────────────────────
+# configuration
 
 CALIBRATION_FILE = (
     "/home/gunnleif/Projects/drema/drema_project/assets/calibration/calibration_files/"
@@ -39,7 +39,7 @@ OUTPUT_DIR = (
     "/home/gunnleif/Projects/drema/drema_project/assets/calibration/calibration_files"
 )
 
-# ── Extrinsics ────────────────────────────────────────────────────────────────
+# extrinsics
 
 def compute_extrinsics(calibration_file, robot_position):
     """
@@ -60,7 +60,7 @@ def compute_extrinsics(calibration_file, robot_position):
     return np.linalg.inv(T_robot_cam) @ T_world2rb
 
 
-# ── Intrinsics ────────────────────────────────────────────────────────────────
+# intrinsics
 
 def compute_intrinsics_from_device():
     """
@@ -88,7 +88,6 @@ def compute_intrinsics_from_device():
     return K_out
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     os.makedirs(OUTPUT_DIR, exist_ok=True)

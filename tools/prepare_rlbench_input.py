@@ -12,7 +12,7 @@ Run from the drema_project directory:
 import os
 import shutil
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# configuration
 
 INPUT_ROOT = "/home/gunnleif/Projects/drema/drema_project/input"
 
@@ -31,7 +31,6 @@ PKL_FILES = [
     "variation_number.pkl",
 ]
 
-# ── Main ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     for scene in SCENES:

@@ -103,17 +103,13 @@ def _read_intrinsics_from_poses(poses_dir: str) -> np.ndarray:
     return np.array([[fx, 0., cx], [0., fy, cy], [0., 0., 1.]])
 
 
-import types as _types
-
 def _make_low_dim_obs():
-    # SimpleNamespace is stdlib — always unpicklable in any context
+    # SimpleNamespace is stdlib, so it stays picklable in any environment
     return _types.SimpleNamespace(random_seed=np.random.get_state())
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="prepare_scene")
 def main(cfg: DictConfig) -> None:
-    #print(OmegaConf.to_yaml(cfg))
-
     scene = cfg.data.source_path
     task = cfg.task
 
@@ -128,8 +124,6 @@ def main(cfg: DictConfig) -> None:
     # 2 - wrist camera
     K_wrist = _read_intrinsics_from_poses(os.path.join(scene, "poses"))
     T_wrist = _compute_wrist_extrinsics_w2c(cfg)
-    # print(f"Wrist K:\n{K_wrist}")
-    # print(f"Wrist T_w2c:\n{T_wrist}")
 
     # 3 - overhead camera
     T_overhead = None

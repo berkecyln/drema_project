@@ -2,6 +2,8 @@ import os
 import time
 from abc import ABC, abstractmethod
 
+import numpy as np
+
 try:
     from franky import ControlException as FrankyControlException
 except ImportError:
@@ -46,7 +48,6 @@ class BaseMover(ABC):
         exc_type = FrankyControlException if FrankyControlException is not None else Exception
         for attempt in range(1 + self.MOVE_RETRIES):
             try:
-                import numpy as np
                 if isinstance(waypoint, np.ndarray):
                     self.robot.move_joint_pos(waypoint)
                 else:

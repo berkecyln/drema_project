@@ -24,9 +24,6 @@ import pybullet as p
 from plyfile import PlyData, PlyElement
 from scipy.spatial.transform import Rotation as R
 
-# --------------------------------------------------------------------------- #
-# Configuration
-# --------------------------------------------------------------------------- #
 URDF = "./assets/franka_panda/panda.urdf"
 SRC_DIR = "./assets/robot_surf_gaussians"
 DST_DIR = "./assets/robot_surf_gaussians_gello"
@@ -40,9 +37,7 @@ TARGET_BASE   = [0.260, 0.008, -0.831]
 TARGET_JOINTS = [-0.017792, -0.760124, 0.019783, -2.342050, 0.029841, 1.541194, 0.753449]
 
 # Mapping: file index → pybullet joint index (-1 = robot base)
-# matches connected_joints: [-1, 0, 1, 2, 3, 4, 5, 6, 7, 9, 8]
 CONNECTED_JOINTS = [-1, 0, 1, 2, 3, 4, 5, 6, 7, 9, 8]
-# --------------------------------------------------------------------------- #
 
 
 def get_link_frames(base_pos, joint_pos):
@@ -87,22 +82,19 @@ def transform_ply(ply_path, delta_R, delta_t, out_path):
     ply = PlyData.read(ply_path)
     verts = ply['vertex']
 
-    # --- positions ---------------------------------------------------------
     xyz = np.stack([verts['x'], verts['y'], verts['z']], axis=1)  # (N,3)
     xyz_new = (delta_R @ xyz.T).T + delta_t
 
-    # --- normals -----------------------------------------------------------
     nx = np.stack([verts['nx'], verts['ny'], verts['nz']], axis=1)
     nx_new = (delta_R @ nx.T).T
 
-    # --- Gaussian rotation quaternions (scalar-first: w,x,y,z) ----------
+    # Gaussian rotation quaternions are scalar-first (w,x,y,z)
     rot_q = np.stack([verts['rot_0'], verts['rot_1'],
-                      verts['rot_2'], verts['rot_3']], axis=1)  # (N,4) w,x,y,z
+                      verts['rot_2'], verts['rot_3']], axis=1)  # (N,4)
     rot_mats = np.array([quat_to_mat(q) for q in rot_q])        # (N,3,3)
     rot_mats_new = delta_R @ rot_mats                            # broadcast (3,3)@(N,3,3)
     rot_q_new = np.array([mat_to_quat_scalar_first(m) for m in rot_mats_new])
 
-    # --- rebuild PLY -------------------------------------------------------
     data = {p_.name: verts[p_.name].copy() for p_ in verts.properties}
     data['x'], data['y'], data['z'] = xyz_new[:, 0], xyz_new[:, 1], xyz_new[:, 2]
     data['nx'], data['ny'], data['nz'] = nx_new[:, 0], nx_new[:, 1], nx_new[:, 2]
