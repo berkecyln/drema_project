@@ -6,7 +6,7 @@ This is a fork of [DreMa (ICLR 2025)](https://dreamtomanipulate.github.io/) deve
 
 The goal of this project was to take DreMa to a complete real-robot pipeline: collecting data with a Franka Panda, building the Gaussian splatting world model, generating augmented demonstrations, and training and deploying a PerAct policy back on the real robot.
 
-![DreMa real-robot pipeline showcase](assets/media/showcase.gif)
+![Improved DreMa pipeline for lab deployment](assets/media/showcase.gif)
 
 ## Extensions & Improvements
 The main extensions over the original codebase, needed to deploy and evaluate DreMa on a real Franka Panda in Freiburg:
